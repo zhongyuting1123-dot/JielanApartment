@@ -1,0 +1,792 @@
+import { useState, useRef } from 'react';
+import { Plus, ChevronRight, ChevronDown, Sparkles, Search, Check, Play, Volume2, BookmarkCheck, X, Edit3, RefreshCw, Trash2, Image, Upload, FileText, Zap, BookOpen, AlertTriangle, Copy, Download, Eye, Mic, Video } from 'lucide-react';
+import { projects, statusConfig, platformColors, clients } from '../data/mockData';
+import { promptTemplates, getCategories, filterTemplates } from '../data/promptTemplates';
+import { PlatformBadge, SectionDivider, DigitalHumanIllustration } from '../components/Illustrations';
+
+/* ── Glass styles ──────────────────────────────────────────────── */
+const glassCard = {
+  background: 'var(--glass-bg)',
+  backdropFilter: 'blur(var(--glass-blur)) saturate(var(--glass-saturate))',
+  WebkitBackdropFilter: 'blur(var(--glass-blur)) saturate(var(--glass-saturate))',
+  border: 'var(--glass-border)',
+  boxShadow: 'var(--shadow-glass)',
+  borderRadius: 'var(--radius-md)',
+};
+const glassHeader = {
+  background: 'var(--glass-bg-heavy)',
+  backdropFilter: 'blur(24px) saturate(180%)',
+  WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+  borderBottom: '1px solid rgba(0,0,0,0.04)',
+};
+const inputStyle = {
+  flex: 1, width: '100%', padding: '9px 14px', borderRadius: 'var(--radius-sm)',
+  border: '1px solid rgba(0,0,0,0.06)', fontSize: 13,
+  color: 'var(--color-text)', outline: 'none', fontFamily: 'inherit',
+  background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(8px)',
+  transition: 'border-color var(--transition-fast)', boxSizing: 'border-box',
+};
+
+/* ── Shared UI ─────────────────────────────────────────────────── */
+
+function Tag({ children, color = 'var(--color-text-secondary)', bg = 'rgba(0,0,0,0.04)' }) {
+  return <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 'var(--radius-full)', background: bg, color, fontWeight: 500 }}>{children}</span>;
+}
+function StatusBadge({ status }) {
+  const c = { draft: { label: '草稿', color: 'var(--color-text-secondary)', bg: 'rgba(0,0,0,0.04)' }, production: { label: '生产中', color: 'var(--color-primary)', bg: 'var(--color-primary-bg)' }, completed: { label: '已完成', color: '#5856D6', bg: 'rgba(88,86,214,0.08)' }, published: { label: '已发布', color: 'var(--color-green)', bg: 'var(--color-green-bg)' } };
+  const s = c[status] || c.draft;
+  return <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 'var(--radius-full)', background: s.bg, color: s.color, fontWeight: 500 }}>{s.label}</span>;
+}
+function PrimaryBtn({ children, onClick, size = 'md', disabled }) {
+  const pad = size === 'sm' ? '7px 14px' : '9px 18px';
+  return (
+    <button onClick={onClick} disabled={disabled} style={{
+      display: 'inline-flex', alignItems: 'center', gap: 6,
+      padding: pad, borderRadius: 'var(--radius-sm)', fontSize: size === 'sm' ? 12 : 13,
+      fontWeight: 500, fontFamily: 'inherit',
+      background: disabled ? 'rgba(0,0,0,0.08)' : 'var(--color-primary)', color: disabled ? 'var(--color-text-tertiary)' : '#FFFFFF',
+      border: 'none', cursor: disabled ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
+      transition: 'all var(--transition-smooth)', boxShadow: disabled ? 'none' : '0 2px 8px rgba(0,113,227,0.2)',
+    }}
+      onMouseEnter={e => { if (!disabled) { e.currentTarget.style.background = 'var(--color-primary-hover)'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
+      onMouseLeave={e => { if (!disabled) { e.currentTarget.style.background = 'var(--color-primary)'; e.currentTarget.style.transform = 'none'; } }}
+    >{children}</button>
+  );
+}
+function GhostBtn({ children, onClick }) {
+  return (
+    <button onClick={onClick} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 'var(--radius-sm)', fontSize: 12, fontWeight: 500, fontFamily: 'inherit', background: 'none', color: 'var(--color-text-secondary)', border: 'none', cursor: 'pointer', transition: 'color var(--transition-fast)' }}
+      onMouseEnter={e => e.currentTarget.style.color = 'var(--color-primary)'}
+      onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-secondary)'}
+    >{children}</button>
+  );
+}
+function SecondaryBtn({ children, onClick }) {
+  return (
+    <button onClick={onClick} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 'var(--radius-sm)', fontSize: 12, fontWeight: 500, fontFamily: 'inherit', background: 'rgba(255,255,255,0.5)', color: 'var(--color-primary)', border: '1px solid rgba(0,0,0,0.06)', cursor: 'pointer', backdropFilter: 'blur(8px)', transition: 'all var(--transition-fast)' }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-primary-bg)'; e.currentTarget.style.borderColor = 'var(--color-primary)'; }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.5)'; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.06)'; }}
+    >{children}</button>
+  );
+}
+
+/* ── Prompt Template Picker (inline) ──────────────────────────── */
+
+function PromptTemplatePicker({ toolType, onSelect }) {
+  const [open, setOpen] = useState(false);
+  const [cat, setCat] = useState('all');
+  const categories = getCategories(toolType);
+  const templates = filterTemplates(toolType, cat);
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <button onClick={() => setOpen(!open)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 'var(--radius-full)', fontSize: 11, fontWeight: 500, fontFamily: 'inherit', background: open ? 'var(--color-primary-bg)' : 'rgba(0,0,0,0.03)', color: open ? 'var(--color-primary)' : 'var(--color-text-secondary)', border: `1px solid ${open ? 'rgba(0,113,227,0.15)' : 'rgba(0,0,0,0.04)'}`, cursor: 'pointer', transition: 'all var(--transition-fast)' }}>
+        <BookmarkCheck size={11} /> Prompt 模版
+        <ChevronDown size={10} style={{ transition: 'transform var(--transition-base)', transform: open ? 'rotate(180deg)' : 'rotate(0)' }} />
+      </button>
+      {open && (
+        <div style={{ marginTop: 8, animation: 'fadeIn 150ms ease' }}>
+          <div style={{ display: 'flex', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
+            <button onClick={() => setCat('all')} style={{ padding: '3px 10px', borderRadius: 'var(--radius-full)', fontSize: 10, fontWeight: 500, background: cat === 'all' ? 'var(--color-text)' : 'rgba(0,0,0,0.03)', color: cat === 'all' ? '#FFF' : 'var(--color-text-secondary)', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>全部</button>
+            {categories.map(c => <button key={c} onClick={() => setCat(c)} style={{ padding: '3px 10px', borderRadius: 'var(--radius-full)', fontSize: 10, fontWeight: 500, background: cat === c ? 'var(--color-text)' : 'rgba(0,0,0,0.03)', color: cat === c ? '#FFF' : 'var(--color-text-secondary)', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{c}</button>)}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
+            {templates.map(t => (
+              <div key={t.id} onClick={() => { onSelect(t.prompt); setOpen(false); }} style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.4)', border: '1px solid rgba(0,0,0,0.04)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'all var(--transition-fast)' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.background = 'rgba(255,255,255,0.7)'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.background = 'rgba(255,255,255,0.4)'; }}
+              >
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text)', marginBottom: 4 }}>{t.title}</div>
+                <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', lineHeight: 1.5, maxHeight: 30, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{t.prompt}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── 2x2 Result Grid (mock) ───────────────────────────────────── */
+
+function ResultGrid2x2({ generated }) {
+  const placeholders = [1, 2, 3, 4];
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 10 }}>
+      {placeholders.map(i => (
+        <div key={i} style={{
+          aspectRatio: '1', borderRadius: 'var(--radius-sm)',
+          background: generated ? `linear-gradient(${135 + i * 30}deg, rgba(0,113,227,0.06), rgba(88,86,214,0.08), rgba(52,199,89,0.05))` : 'rgba(0,0,0,0.02)',
+          border: '1px solid rgba(0,0,0,0.04)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          position: 'relative', overflow: 'hidden', transition: 'all var(--transition-fast)',
+        }}>
+          {generated ? (
+            <>
+              <Image size={24} color="rgba(0,0,0,0.1)" />
+              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '6px 8px', background: 'linear-gradient(transparent, rgba(0,0,0,0.5))', display: 'flex', gap: 6, justifyContent: 'flex-end', opacity: 0, transition: 'opacity var(--transition-fast)' }}
+                onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+              >
+                <Eye size={12} color="#FFF" style={{ cursor: 'pointer' }} />
+                <Download size={12} color="#FFF" style={{ cursor: 'pointer' }} />
+                <Check size={12} color="#FFF" style={{ cursor: 'pointer' }} />
+              </div>
+            </>
+          ) : (
+            <span style={{ fontSize: 11, color: 'var(--color-text-quaternary)' }}>待生成</span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Reference Image Upload ───────────────────────────────────── */
+
+function RefImageUpload({ refImg, onChange }) {
+  const fileRef = useRef(null);
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { if (e.target.files?.[0]) onChange(e.target.files[0].name); }} />
+      {refImg ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'rgba(0,113,227,0.04)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(0,113,227,0.1)' }}>
+          <Image size={12} color="var(--color-primary)" />
+          <span style={{ fontSize: 11, color: 'var(--color-primary)', flex: 1 }}>{refImg}</span>
+          <X size={12} color="var(--color-text-tertiary)" style={{ cursor: 'pointer' }} onClick={() => onChange(null)} />
+        </div>
+      ) : (
+        <button onClick={() => fileRef.current?.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 'var(--radius-full)', fontSize: 10, fontWeight: 500, fontFamily: 'inherit', background: 'rgba(0,0,0,0.02)', color: 'var(--color-text-tertiary)', border: '1px dashed rgba(0,0,0,0.08)', cursor: 'pointer', transition: 'all var(--transition-fast)' }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.color = 'var(--color-primary)'; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(0,0,0,0.08)'; e.currentTarget.style.color = 'var(--color-text-tertiary)'; }}
+        ><Upload size={10} /> 垫图（可选）</button>
+      )}
+    </div>
+  );
+}
+
+/* ── Accordion ─────────────────────────────────────────────────── */
+
+function Accordion({ title, badge, defaultOpen = false, locked, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={{ ...glassCard, overflow: 'hidden', marginBottom: 14, transition: 'box-shadow var(--transition-base)', boxShadow: open ? 'var(--shadow-md)' : 'var(--shadow-glass)' }}>
+      <button onClick={() => setOpen(!open)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 22px', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)' }}>{title}</span>
+          {badge && <Tag>{badge}</Tag>}
+          {locked && <Tag color="var(--color-orange)" bg="var(--color-orange-bg)">需先确认方案</Tag>}
+        </div>
+        <ChevronDown size={15} color="var(--color-text-tertiary)" style={{ transition: 'transform var(--transition-base)', transform: open ? 'rotate(180deg)' : 'rotate(0)' }} />
+      </button>
+      {open && (
+        <div style={{ padding: '4px 22px 22px', borderTop: '1px solid rgba(0,0,0,0.04)', animation: 'fadeIn 150ms ease' }}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 来源层 — 三选一
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function SourceLayer({ project, onSourceReady }) {
+  const [mode, setMode] = useState(null);
+  const [hotTopics, setHotTopics] = useState([]);
+  const [selectedTopic, setSelectedTopic] = useState(null);
+  const [uploadText, setUploadText] = useState('');
+  const [researchKw, setResearchKw] = useState('');
+  const [researchResult, setResearchResult] = useState('');
+  const [searching, setSearching] = useState(false);
+
+  const client = clients.find(c => c.id === project.clientId);
+
+  const options = [
+    { id: 'trending', icon: <Zap size={16} />, label: '热点抓取', desc: '根据客户画像搜索适合的热点话题' },
+    { id: 'upload', icon: <FileText size={16} />, label: '甲方文案', desc: '粘贴或上传甲方提供的原始文案' },
+    { id: 'research', icon: <BookOpen size={16} />, label: '深度调研', desc: 'Gemini Deep Research 生成专业报告' },
+  ];
+
+  const fetchHotTopics = () => {
+    setSearching(true);
+    setTimeout(() => {
+      setHotTopics([
+        { id: 1, title: '烟酰胺浓度越高越好？皮肤科医生说出真相', heat: '热榜', source: '抖音' },
+        { id: 2, title: '30岁后护肤重点：胶原蛋白流失怎么补', heat: '上升', source: '小红书' },
+        { id: 3, title: '医美平替成分大测评，这三款性价比最高', heat: '精选', source: '小红书' },
+        { id: 4, title: '敏感肌换季必看：屏障修复的3个关键步骤', heat: '热榜', source: '抖音' },
+        { id: 5, title: '2025早C晚A已过时？新护肤公式火了', heat: '上升', source: 'B站' },
+      ]);
+      setSearching(false);
+    }, 1200);
+  };
+
+  const startResearch = () => {
+    setSearching(true);
+    setTimeout(() => {
+      setResearchResult(`## 调研报告：${researchKw}\n\n### 市场现状\n${researchKw}相关领域近年增长显著，消费者认知度不断提升...\n\n### 核心发现\n1. 目标人群对${researchKw}的关注度同比增长45%\n2. 内容偏好：短视频科普 > 图文种草 > 直播讲解\n3. 高转化关键词：功效、成分、对比、真实体验\n\n### 内容建议\n- 以"成分解读+真实体验"为核心内容方向\n- 重点布局抖音和小红书双平台\n- 建议产出频率：每周4-5条`);
+      setSearching(false);
+    }, 2000);
+  };
+
+  const handleConfirmSource = (sourceText) => {
+    onSourceReady(sourceText);
+  };
+
+  return (
+    <div style={{ marginTop: 14 }}>
+      {/* Client context hint */}
+      {client && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, padding: '10px 14px', background: 'rgba(0,113,227,0.04)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(0,113,227,0.08)' }}>
+          <Sparkles size={13} color="var(--color-primary)" />
+          <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>当前客户：<strong style={{ color: 'var(--color-text)' }}>{client.name}</strong> · {client.industry} · {client.direction}</span>
+        </div>
+      )}
+
+      {/* Three options */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+        {options.map(o => (
+          <button key={o.id} onClick={() => setMode(mode === o.id ? null : o.id)} style={{
+            padding: '18px', borderRadius: 'var(--radius-sm)', textAlign: 'left',
+            border: `1px solid ${mode === o.id ? 'var(--color-primary)' : 'rgba(0,0,0,0.06)'}`,
+            background: mode === o.id ? 'var(--color-primary-bg)' : 'rgba(255,255,255,0.5)',
+            backdropFilter: 'blur(8px)', cursor: 'pointer', fontFamily: 'inherit', transition: 'all var(--transition-fast)',
+          }}>
+            <div style={{ color: mode === o.id ? 'var(--color-primary)' : 'var(--color-text-secondary)', marginBottom: 10 }}>{o.icon}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)', marginBottom: 3 }}>{o.label}</div>
+            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>{o.desc}</div>
+          </button>
+        ))}
+      </div>
+
+      {/* Mode: Trending */}
+      {mode === 'trending' && (
+        <div style={{ marginTop: 16, animation: 'fadeIn 150ms ease' }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+            <PrimaryBtn size="sm" onClick={fetchHotTopics} disabled={searching}>
+              {searching ? <><RefreshCw size={12} style={{ animation: 'spin 1s linear infinite' }} /> 搜索中...</> : <><Search size={12} /> 搜索匹配热点</>}
+            </PrimaryBtn>
+          </div>
+          {hotTopics.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {hotTopics.map(t => (
+                <div key={t.id} onClick={() => setSelectedTopic(t)} style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px',
+                  background: selectedTopic?.id === t.id ? 'var(--color-primary-bg)' : 'rgba(255,255,255,0.4)',
+                  border: `1px solid ${selectedTopic?.id === t.id ? 'var(--color-primary)' : 'rgba(0,0,0,0.04)'}`,
+                  borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'all var(--transition-fast)',
+                }}>
+                  <div style={{ width: 18, height: 18, borderRadius: '50%', border: `2px solid ${selectedTopic?.id === t.id ? 'var(--color-primary)' : 'rgba(0,0,0,0.12)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {selectedTopic?.id === t.id && <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-primary)' }} />}
+                  </div>
+                  <span style={{ flex: 1, fontSize: 13, color: 'var(--color-text)', lineHeight: 1.5 }}>{t.title}</span>
+                  <Tag color="var(--color-primary)" bg="var(--color-primary-bg)">{t.heat}</Tag>
+                  <span style={{ fontSize: 10, color: 'var(--color-text-tertiary)' }}>{t.source}</span>
+                </div>
+              ))}
+              {selectedTopic && (
+                <div style={{ marginTop: 8 }}>
+                  <PrimaryBtn size="sm" onClick={() => handleConfirmSource(`热点话题：${selectedTopic.title}`)}><Check size={12} /> 使用此热点，进入方案层</PrimaryBtn>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Mode: Upload */}
+      {mode === 'upload' && (
+        <div style={{ marginTop: 16, animation: 'fadeIn 150ms ease' }}>
+          <textarea value={uploadText} onChange={e => setUploadText(e.target.value)} placeholder="粘贴甲方提供的原始文案内容..." style={{ ...inputStyle, minHeight: 120, resize: 'vertical', lineHeight: 1.8, padding: '14px' }} />
+          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+            <PrimaryBtn size="sm" onClick={() => handleConfirmSource(uploadText)} disabled={!uploadText.trim()}><Check size={12} /> 使用此文案，进入方案层</PrimaryBtn>
+          </div>
+        </div>
+      )}
+
+      {/* Mode: Research */}
+      {mode === 'research' && (
+        <div style={{ marginTop: 16, animation: 'fadeIn 150ms ease' }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+            <input value={researchKw} onChange={e => setResearchKw(e.target.value)} placeholder="输入核心关键词，如「烟酰胺 护肤」" style={inputStyle} />
+            <PrimaryBtn size="sm" onClick={startResearch} disabled={!researchKw.trim() || searching}>
+              {searching ? <><RefreshCw size={12} style={{ animation: 'spin 1s linear infinite' }} /> 调研中...</> : <><Sparkles size={12} /> Deep Research</>}
+            </PrimaryBtn>
+          </div>
+          {researchResult && (
+            <div>
+              <div style={{ background: 'rgba(255,255,255,0.4)', borderRadius: 'var(--radius-sm)', padding: '16px', border: '1px solid rgba(0,0,0,0.04)', maxHeight: 240, overflowY: 'auto', marginBottom: 10 }}>
+                <SimpleMarkdown text={researchResult} />
+              </div>
+              <PrimaryBtn size="sm" onClick={() => handleConfirmSource(researchResult)}><Check size={12} /> 使用调研报告，进入方案层</PrimaryBtn>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SimpleMarkdown({ text }) {
+  return (
+    <div style={{ fontSize: 13, lineHeight: 1.8, color: 'var(--color-text)' }}>
+      {text.split('\n').map((line, i) => {
+        if (line.startsWith('### ')) return <div key={i} style={{ fontWeight: 600, fontSize: 13, marginTop: i > 0 ? 12 : 0, marginBottom: 2 }}>{line.slice(4)}</div>;
+        if (line.startsWith('## ')) return <div key={i} style={{ fontWeight: 700, fontSize: 14, marginTop: i > 0 ? 14 : 0, marginBottom: 4 }}>{line.slice(3)}</div>;
+        if (/^\d+\.\s/.test(line)) return <div key={i} style={{ paddingLeft: 8 }}>{line}</div>;
+        if (line.startsWith('- ')) return <div key={i} style={{ paddingLeft: 8 }}>{line}</div>;
+        if (line.trim() === '') return <div key={i} style={{ height: 6 }} />;
+        return <div key={i}>{line}</div>;
+      })}
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 方案层 — AI 生成 + 可编辑 + 联动生产层
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function SchemeLayer({ sourceText, onSchemeConfirm, scheme, setScheme }) {
+  const [generating, setGenerating] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editDraft, setEditDraft] = useState('');
+
+  const generate = () => {
+    setGenerating(true);
+    setTimeout(() => {
+      const mockScheme = `## 视频主题\n烟酰胺的 3 个真相，护肤 5 年踩坑总结\n\n## 核心卖点\n成分党视角 · 科学实证 · 性价比优先\n\n## 推荐形式\n口播 + 分镜头（知识科普型，2-3 分钟）\n\n## 内容框架\n1. 开头：反常识钩子 → 引发好奇\n2. 痛点放大：常见误区\n3. 知识点1：浓度不是越高越好\n4. 知识点2：搭配禁忌\n5. 知识点3：剂型决定效果\n6. 产品引入：基于标准推荐\n7. CTA：引导互动\n\n## 分镜头规划\n- 镜头1：主播正脸，反问式开场\n- 镜头2：产品特写，成分表标注\n- 镜头3：对比实验画面\n- 镜头4：产品使用过程\n- 镜头5：数据卡片总结\n\n## 配图规划\n- 封面图：悬念标题 + 产品半身\n- 知识卡片：3个成分对比图\n- 产品主图：白底精华液特写`;
+      setScheme(mockScheme);
+      setGenerating(false);
+    }, 1500);
+  };
+
+  const startEdit = () => { setEditDraft(scheme); setEditing(true); };
+  const saveEdit = () => { setScheme(editDraft); setEditing(false); };
+
+  return (
+    <div style={{ marginTop: 14 }}>
+      {sourceText && (
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 14, padding: '10px 14px', background: 'rgba(0,113,227,0.04)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(0,113,227,0.08)' }}>
+          <FileText size={13} color="var(--color-primary)" style={{ marginTop: 2, flexShrink: 0 }} />
+          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.6, maxHeight: 48, overflow: 'hidden' }}>来源素材：{sourceText.slice(0, 100)}{sourceText.length > 100 ? '...' : ''}</div>
+        </div>
+      )}
+
+      {!scheme ? (
+        <PrimaryBtn onClick={generate} disabled={generating}>
+          {generating ? <><RefreshCw size={13} style={{ animation: 'spin 1s linear infinite' }} /> AI 生成方案中...</> : <><Sparkles size={14} /> AI 一键生成方案</>}
+        </PrimaryBtn>
+      ) : (
+        <div style={{ animation: 'fadeIn 200ms ease' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <Tag color="var(--color-green)" bg="var(--color-green-bg)">方案已生成</Tag>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {editing ? (
+                <>
+                  <GhostBtn onClick={() => setEditing(false)}>取消</GhostBtn>
+                  <PrimaryBtn size="sm" onClick={saveEdit}><Check size={12} /> 保存</PrimaryBtn>
+                </>
+              ) : (
+                <>
+                  <GhostBtn onClick={startEdit}><Edit3 size={12} /> 编辑方案</GhostBtn>
+                  <GhostBtn onClick={generate}><RefreshCw size={12} /> 重新生成</GhostBtn>
+                </>
+              )}
+            </div>
+          </div>
+          {editing ? (
+            <textarea value={editDraft} onChange={e => setEditDraft(e.target.value)} style={{ ...inputStyle, minHeight: 260, resize: 'vertical', lineHeight: 1.8, padding: '14px' }} />
+          ) : (
+            <div style={{ background: 'rgba(255,255,255,0.4)', borderRadius: 'var(--radius-sm)', padding: '18px', border: '1px solid rgba(0,0,0,0.04)', backdropFilter: 'blur(8px)', maxHeight: 320, overflowY: 'auto' }}>
+              <SimpleMarkdown text={scheme} />
+            </div>
+          )}
+          {!editing && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+              <PrimaryBtn onClick={() => onSchemeConfirm(scheme)}><Check size={13} /> 确认方案，进入生产层</PrimaryBtn>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 生产层 — 4 Tab
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function ProductionLayer({ confirmed, schemeChanged, onResetChanged, project }) {
+  const [tab, setTab] = useState('script');
+  const tabs = [
+    { id: 'script', label: '口播稿', icon: <Mic size={13} /> },
+    { id: 'copy', label: '发布文案', icon: <FileText size={13} /> },
+    { id: 'storyboard', label: '分镜头', icon: <Video size={13} /> },
+    { id: 'images', label: '素材图片', icon: <Image size={13} /> },
+  ];
+
+  if (!confirmed) {
+    return (
+      <div style={{ marginTop: 14, padding: '32px', textAlign: 'center' }}>
+        <AlertTriangle size={24} color="var(--color-text-tertiary)" style={{ marginBottom: 10 }} />
+        <div style={{ fontSize: 13, color: 'var(--color-text-tertiary)' }}>请先在方案层确认方案后，自动生成生产内容</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: 14 }}>
+      {/* Scheme changed warning */}
+      {schemeChanged && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, padding: '10px 14px', background: 'rgba(255,149,0,0.06)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(255,149,0,0.15)' }}>
+          <AlertTriangle size={13} color="var(--color-orange)" />
+          <span style={{ fontSize: 12, color: 'var(--color-orange)', flex: 1 }}>方案已更新，建议重新生成生产内容</span>
+          <SecondaryBtn onClick={onResetChanged}><RefreshCw size={11} /> 一键刷新</SecondaryBtn>
+        </div>
+      )}
+
+      {/* Tab bar */}
+      <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(0,0,0,0.06)', marginBottom: 18 }}>
+        {tabs.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)} style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '10px 16px', fontSize: 12, fontWeight: tab === t.id ? 600 : 400,
+            color: tab === t.id ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+            background: 'none', border: 'none', cursor: 'pointer',
+            borderBottom: tab === t.id ? '2px solid var(--color-primary)' : '2px solid transparent',
+            fontFamily: 'inherit', marginBottom: -1, transition: 'color var(--transition-fast)',
+          }}>{t.icon} {t.label}</button>
+        ))}
+      </div>
+
+      {tab === 'script' && <ScriptTab project={project} />}
+      {tab === 'copy' && <CopyTab />}
+      {tab === 'storyboard' && <StoryboardTab />}
+      {tab === 'images' && <ImagesTab />}
+    </div>
+  );
+}
+
+/* ── Tab: 口播稿 ──────────────────────────────────────────────── */
+
+function ScriptTab({ project }) {
+  const [script, setScript] = useState(`【开头钩子 - 0~8s】\n"你知道为什么用了三年烟酰胺，皮肤还是没变白吗？"\n\n【痛点放大 - 8~25s】\n很多人买了一堆烟酰胺产品，照镜子还是暗沉——不是产品无效，是你根本没搞清楚这三个真相。\n\n【知识点1 - 25~55s】\n真相一：浓度不是越高越好。5%以上容易致敏，2%~4%才是黄金区间...\n\n【知识点2 - 55~85s】\n真相二：搭配很关键。烟酰胺+维C同时用？你在浪费两瓶精华...\n\n【知识点3 - 85~110s】\n真相三：剂型决定渗透率。精华>乳液>面霜，同浓度效果差3倍...\n\n【产品引入 - 110~125s】\n基于这三个标准，我测了20款，最终留下这一瓶...\n\n【CTA - 125~135s】\n评论区告诉我你现在用的是哪个品牌，我帮你看看踩没踩坑。`);
+  const [selectedAvatar, setSelectedAvatar] = useState(0);
+  const [selectedVoice, setSelectedVoice] = useState('warm_f');
+  const [videoStatus, setVideoStatus] = useState('idle');
+
+  const client = clients.find(c => c.id === project?.clientId);
+  const dh = client?.digitalHumans || { avatars: [], voices: [] };
+  const VOICES = dh.voices.length > 0 ? dh.voices.map(v => ({ id: v.id, label: v.name, desc: v.desc || '' })) : [
+    { id: 'warm_f', label: '温柔女声', desc: '亲切 · 轻柔' },
+    { id: 'pro_f', label: '专业女声', desc: '沉稳 · 有质感' },
+  ];
+
+  return (
+    <div>
+      <PromptTemplatePicker toolType="script" onSelect={p => setScript(p)} />
+      <textarea value={script} onChange={e => setScript(e.target.value)} placeholder="口播稿内容..." style={{ ...inputStyle, minHeight: 200, resize: 'vertical', lineHeight: 1.8, padding: '14px', marginBottom: 12 }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 22 }}>
+        <PrimaryBtn size="sm"><Sparkles size={12} /> AI 重新生成</PrimaryBtn>
+        <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>约 135 秒 · 2 分 15 秒</span>
+      </div>
+
+      <SectionDivider label="数字人配置" />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 18 }}>
+        <div>
+          <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 10, fontWeight: 500 }}>选择数字人形象</div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            {(dh.avatars.length > 0 ? dh.avatars : [{ id: 0, name: '默认形象', status: 'ready' }]).map((av, i) => (
+              <div key={av.id} onClick={() => av.status === 'ready' && setSelectedAvatar(i)} style={{
+                flex: 1, padding: '14px', textAlign: 'center',
+                border: `1px solid ${selectedAvatar === i ? 'var(--color-primary)' : 'rgba(0,0,0,0.06)'}`,
+                borderRadius: 'var(--radius-sm)',
+                background: selectedAvatar === i ? 'var(--color-primary-bg)' : 'rgba(255,255,255,0.5)',
+                cursor: av.status === 'ready' ? 'pointer' : 'default',
+                opacity: av.status !== 'ready' ? 0.5 : 1, transition: 'all var(--transition-fast)',
+              }}>
+                <div style={{ margin: '0 auto 8px' }}><DigitalHumanIllustration size={36} /></div>
+                <div style={{ fontSize: 12, fontWeight: 500, color: selectedAvatar === i ? 'var(--color-primary)' : 'var(--color-text)' }}>{av.name}</div>
+                <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginTop: 3 }}>{av.status === 'ready' ? '可用' : '训练中'}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 10, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4 }}><Volume2 size={11} /> 选择音色</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {VOICES.map(v => (
+              <div key={v.id} onClick={() => setSelectedVoice(v.id)} style={{
+                padding: '12px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                border: `1px solid ${selectedVoice === v.id ? 'var(--color-primary)' : 'rgba(0,0,0,0.06)'}`,
+                background: selectedVoice === v.id ? 'var(--color-primary-bg)' : 'rgba(255,255,255,0.5)',
+                transition: 'all var(--transition-fast)',
+              }}>
+                <div style={{ fontSize: 12, fontWeight: 500, color: selectedVoice === v.id ? 'var(--color-primary)' : 'var(--color-text)' }}>{v.label}</div>
+                {v.desc && <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginTop: 3 }}>{v.desc}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <PrimaryBtn onClick={() => setVideoStatus(videoStatus === 'idle' ? 'queuing' : 'idle')}>
+        <Play size={13} /> {videoStatus === 'idle' ? '生成数字人视频' : '重新生成'}
+      </PrimaryBtn>
+      {videoStatus !== 'idle' && (
+        <span style={{ fontSize: 12, color: 'var(--color-primary)', fontWeight: 500, marginLeft: 10 }}>● 排队中，预计 3 分钟</span>
+      )}
+    </div>
+  );
+}
+
+/* ── Tab: 发布文案 ────────────────────────────────────────────── */
+
+function CopyTab() {
+  const [title, setTitle] = useState('烟酰胺的3个真相，护肤5年终于搞明白了');
+  const [body, setBody] = useState('用了三年烟酰胺，皮肤还是没变白？\n不是产品无效，是你根本没搞清楚这三个关键点👇\n\n✅ 浓度：2%-4%才是黄金区间，不是越高越好\n✅ 搭配：和维C同时用=浪费两瓶精华\n✅ 剂型：精华>乳液>面霜，同浓度效果差3倍\n\n基于这3个标准，我测了市面20款，最终只留了1瓶。\n\n你现在用的是什么？评论区告诉我，帮你看看踩没踩坑～');
+  const [tags, setTags] = useState('#烟酰胺 #护肤真相 #成分党 #美白 #护肤避坑');
+
+  return (
+    <div>
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 6 }}>标题</label>
+        <input value={title} onChange={e => setTitle(e.target.value)} style={inputStyle} />
+      </div>
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 6 }}>正文</label>
+        <textarea value={body} onChange={e => setBody(e.target.value)} style={{ ...inputStyle, minHeight: 180, resize: 'vertical', lineHeight: 1.8, padding: '14px' }} />
+      </div>
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 6 }}>标签</label>
+        <input value={tags} onChange={e => setTags(e.target.value)} style={inputStyle} />
+      </div>
+      <PrimaryBtn size="sm"><Sparkles size={12} /> AI 重新生成</PrimaryBtn>
+    </div>
+  );
+}
+
+/* ── Tab: 分镜头 / 素材图片 (shared component) ────────────────── */
+
+function ImageGenTab({ type }) {
+  const isStoryboard = type === 'storyboard';
+  const toolType = isStoryboard ? 'storyboard' : 'image';
+  const initialCards = isStoryboard
+    ? [
+        { id: 1, prompt: '主播面对镜头，眼神直视，表情自然，配合手势讲解，简洁背景', generated: false, refImg: null },
+        { id: 2, prompt: '产品精华液特写，成分表标注高亮，柔和打光，微距拍摄', generated: false, refImg: null },
+        { id: 3, prompt: '分屏对比画面，左侧使用前暗沉肤色，右侧使用后通透肤色', generated: false, refImg: null },
+        { id: 4, prompt: '产品使用过程，手部取精华涂抹面部，第一人称视角，质地清透', generated: false, refImg: null },
+        { id: 5, prompt: '数据卡片动画入场，三个核心数据对比图，品牌色背景', generated: false, refImg: null },
+      ]
+    : [
+        { id: 1, prompt: '烟酰胺精华液，纯白背景，产品居中，柔和自然光，专业商拍质感，8K', generated: false, refImg: null },
+        { id: 2, prompt: '16:9短视频封面，大字标题"烟酰胺3个真相"，产品半身，悬念感', generated: false, refImg: null },
+        { id: 3, prompt: '成分功效对比卡片，简洁信息图风格，3栏对比，品牌蓝色调', generated: false, refImg: null },
+      ];
+
+  const [cards, setCards] = useState(initialCards);
+
+  const updateCard = (id, updates) => setCards(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+  const addCard = () => setCards(prev => [...prev, { id: Date.now(), prompt: '', generated: false, refImg: null }]);
+  const removeCard = (id) => setCards(prev => prev.filter(c => c.id !== id));
+  const generateAll = () => setCards(prev => prev.map(c => ({ ...c, generated: true })));
+  const generateOne = (id) => updateCard(id, { generated: true });
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{cards.length} 个{isStoryboard ? '镜头' : '图片'} · 接口：{isStoryboard ? '即梦 / Lovart' : '即梦'} (mock)</span>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <SecondaryBtn onClick={addCard}><Plus size={11} /> 新增{isStoryboard ? '镜头' : '图片'}</SecondaryBtn>
+          <PrimaryBtn size="sm" onClick={generateAll}><Sparkles size={12} /> 一键全部生成</PrimaryBtn>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {cards.map((card, idx) => (
+          <div key={card.id} style={{ ...glassCard, padding: '16px 18px', display: 'grid', gridTemplateColumns: '1fr 200px', gap: 16 }}>
+            {/* Left: prompt */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text)' }}>{isStoryboard ? `镜头 ${idx + 1}` : `图片 ${idx + 1}`}</span>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {cards.length > 1 && (
+                    <button onClick={() => removeCard(card.id)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: 'var(--radius-sm)', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', transition: 'color var(--transition-fast)' }}
+                      onMouseEnter={e => e.currentTarget.style.color = 'var(--color-red)'}
+                      onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-tertiary)'}
+                    ><Trash2 size={12} /></button>
+                  )}
+                </div>
+              </div>
+              <PromptTemplatePicker toolType={toolType} onSelect={p => updateCard(card.id, { prompt: p })} />
+              <RefImageUpload refImg={card.refImg} onChange={v => updateCard(card.id, { refImg: v })} />
+              <textarea
+                value={card.prompt}
+                onChange={e => updateCard(card.id, { prompt: e.target.value })}
+                placeholder="输入或从模版选择 Prompt..."
+                style={{ ...inputStyle, minHeight: 72, resize: 'vertical', lineHeight: 1.7, padding: '10px 12px', fontSize: 12, marginBottom: 8 }}
+              />
+              <PrimaryBtn size="sm" onClick={() => generateOne(card.id)} disabled={!card.prompt.trim()}>
+                {card.generated ? <><RefreshCw size={11} /> 重新生成</> : <><Sparkles size={11} /> 生成</>}
+              </PrimaryBtn>
+            </div>
+            {/* Right: 2x2 grid */}
+            <div>
+              <ResultGrid2x2 generated={card.generated} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StoryboardTab() { return <ImageGenTab type="storyboard" />; }
+function ImagesTab() { return <ImageGenTab type="image" />; }
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Project List
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function ProjectList({ onOpen, currentUser }) {
+  const [filter, setFilter] = useState('all');
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
+  const myProjects = isAdmin ? projects : projects.filter(p => p.assigneeId === currentUser?.id);
+  const filters = [
+    { id: 'all', label: '全部' }, { id: 'draft', label: '草稿' },
+    { id: 'production', label: '生产中' }, { id: 'completed', label: '已完成' }, { id: 'published', label: '已发布' },
+  ];
+  const filtered = filter === 'all' ? myProjects : myProjects.filter(p => p.status === filter);
+
+  return (
+    <div style={{ flex: 1, overflow: 'auto' }}>
+      <div style={{ padding: '28px 40px 24px', ...glassHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--color-text)', letterSpacing: '-0.5px' }}>创作工作台</h1>
+          <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 6 }}>{isAdmin ? '所有内容项目的生产与管理' : '我负责的内容项目'}</p>
+        </div>
+        <PrimaryBtn><Plus size={14} /> 新建项目</PrimaryBtn>
+      </div>
+      <div style={{ padding: '28px 40px', maxWidth: 1080 }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+          {filters.map(f => (
+            <button key={f.id} onClick={() => setFilter(f.id)} style={{
+              padding: '7px 16px', borderRadius: 'var(--radius-full)', fontSize: 12, fontWeight: 500,
+              background: filter === f.id ? 'var(--color-text)' : 'rgba(255,255,255,0.6)',
+              color: filter === f.id ? '#FFF' : 'var(--color-text-secondary)',
+              border: `1px solid ${filter === f.id ? 'var(--color-text)' : 'rgba(0,0,0,0.06)'}`,
+              cursor: 'pointer', fontFamily: 'inherit', transition: 'all var(--transition-fast)',
+            }}>{f.label}</button>
+          ))}
+        </div>
+        <div style={{ ...glassCard, overflow: 'hidden', animation: 'fadeIn 350ms ease' }}>
+          {filtered.map((p, idx) => (
+            <div key={p.id} onClick={() => onOpen(p.id)} style={{
+              display: 'flex', alignItems: 'center', padding: '15px 22px',
+              borderBottom: idx < filtered.length - 1 ? '1px solid rgba(0,0,0,0.04)' : 'none',
+              cursor: 'pointer', transition: 'background var(--transition-fast)',
+            }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.02)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              <PlatformBadge platform={p.platform} size={26} />
+              <div style={{ flex: 1, minWidth: 0, marginLeft: 2 }}>
+                <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text)', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+                <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{p.clientName} · {p.account}</div>
+              </div>
+              {isAdmin && p.assigneeName && <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginRight: 8 }}>{p.assigneeName}</span>}
+              <StatusBadge status={p.status} />
+              <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginLeft: 16, minWidth: 70, textAlign: 'right' }}>{p.updatedAt}</span>
+              <ChevronRight size={14} color="var(--color-text-quaternary)" style={{ marginLeft: 12 }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Project Detail — 三层结构
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function ProjectDetail({ projectId, onBack }) {
+  const project = projects.find(p => p.id === projectId) || projects[0];
+  const statusFlow = ['draft', 'production', 'completed', 'published'];
+  const currentIdx = statusFlow.indexOf(project.status);
+
+  const [sourceText, setSourceText] = useState('');
+  const [scheme, setScheme] = useState('');
+  const [confirmed, setConfirmed] = useState(false);
+  const [schemeChanged, setSchemeChanged] = useState(false);
+  const [confirmedScheme, setConfirmedScheme] = useState('');
+
+  const handleSourceReady = (text) => { setSourceText(text); };
+  const handleSchemeConfirm = (s) => { setConfirmed(true); setConfirmedScheme(s); setSchemeChanged(false); };
+
+  // Track scheme edits after confirmation
+  const handleSetScheme = (s) => {
+    setScheme(s);
+    if (confirmed && s !== confirmedScheme) setSchemeChanged(true);
+  };
+
+  return (
+    <div style={{ flex: 1, overflow: 'auto', animation: 'fadeIn 250ms ease' }}>
+      <div style={{ ...glassHeader, padding: '22px 40px' }}>
+        <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--color-primary)', fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', marginBottom: 16, fontFamily: 'inherit', fontWeight: 500 }}>
+          <ChevronRight size={14} style={{ transform: 'rotate(180deg)' }} /> 所有项目
+        </button>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+          <div>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--color-text)', marginBottom: 8, letterSpacing: '-0.4px' }}>{project.name}</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--color-text-secondary)' }}>
+              <PlatformBadge platform={project.platform} size={18} />
+              <span>{project.clientName} · {project.account} · {project.platform}</span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            {statusFlow.map((st, i) => {
+              const sc = statusConfig[st];
+              const isPast = i < currentIdx;
+              const isCurrent = i === currentIdx;
+              const config = { draft: { color: 'var(--color-text-secondary)', bg: 'rgba(0,0,0,0.04)' }, production: { color: 'var(--color-primary)', bg: 'var(--color-primary-bg)' }, completed: { color: '#5856D6', bg: 'rgba(88,86,214,0.08)' }, published: { color: 'var(--color-green)', bg: 'var(--color-green-bg)' } };
+              const cc = config[st];
+              return (
+                <div key={st} style={{ display: 'flex', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 12px', borderRadius: 'var(--radius-full)', background: isCurrent ? cc.bg : 'transparent', color: isCurrent ? cc.color : isPast ? 'var(--color-text-tertiary)' : 'var(--color-text-quaternary)', fontSize: 11, fontWeight: isCurrent ? 600 : 400 }}>
+                    {isPast && <Check size={10} />}
+                    {sc.label}
+                  </div>
+                  {i < statusFlow.length - 1 && <ChevronRight size={10} color="var(--color-text-quaternary)" />}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ padding: '28px 40px', maxWidth: 960 }}>
+        <Accordion title="来源层" badge="三选一">
+          <SourceLayer project={project} onSourceReady={handleSourceReady} />
+        </Accordion>
+        <Accordion title="方案层" badge={scheme ? '已生成' : '待生成'} defaultOpen={!!sourceText}>
+          <SchemeLayer sourceText={sourceText} onSchemeConfirm={handleSchemeConfirm} scheme={scheme} setScheme={handleSetScheme} />
+        </Accordion>
+        <Accordion title="生产层" defaultOpen={confirmed} locked={!confirmed}>
+          <ProductionLayer confirmed={confirmed} schemeChanged={schemeChanged} onResetChanged={() => setSchemeChanged(false)} project={project} />
+        </Accordion>
+      </div>
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Main Export
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export default function CreativeStudio({ initialProjectId, onClearProject, currentUser }) {
+  const [selectedProject, setSelectedProject] = useState(initialProjectId || null);
+  const handleBack = () => { setSelectedProject(null); if (onClearProject) onClearProject(); };
+  if (selectedProject) return <ProjectDetail projectId={selectedProject} onBack={handleBack} />;
+  return <ProjectList onOpen={setSelectedProject} currentUser={currentUser} />;
+}
