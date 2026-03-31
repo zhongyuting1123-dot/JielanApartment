@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Plus, ChevronRight, Globe, Users, FolderOpen, Cpu, ChevronDown, Sparkles, X, Edit3, Check, RefreshCw, Search, ChevronLeft, Upload, Video, Mic, FileText } from 'lucide-react';
+import { Plus, ChevronRight, Globe, Users, FolderOpen, Cpu, ChevronDown, Sparkles, X, Edit3, Check, RefreshCw, Search, ChevronLeft, Upload, Video, Mic, FileText, Trash2 } from 'lucide-react';
 import { clients, projects, statusConfig } from '../data/mockData';
 import { ClientAvatar, PlatformBadge, DigitalHumanIllustration } from '../components/Illustrations';
 
@@ -414,6 +414,30 @@ function AccountsTab({ client, onUpdate }) {
   const [showAdd, setShowAdd] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
   const [planDraft, setPlanDraft] = useState('');
+  const [editingAccount, setEditingAccount] = useState(null);
+  const [accDraft, setAccDraft] = useState({ name: '', style: '', target: '', keywords: [] });
+  const [accKwInput, setAccKwInput] = useState('');
+
+  const accountStyles = ['知识型 · 专业', '生活化 · 真实感', '干货型 · 快节奏', '视觉型 · 沉浸感', '品牌形象型', '深度解析型', '生活美学型'];
+
+  const startEditAccount = (acc) => {
+    setEditingAccount(acc.id);
+    setAccDraft({ name: acc.name, style: acc.style || '', target: acc.target || '', keywords: [...(acc.keywords || [])] });
+    setAccKwInput('');
+  };
+  const saveAccount = (accId) => {
+    const updated = client.accounts.map(a => a.id === accId ? { ...a, ...accDraft } : a);
+    onUpdate({ accounts: updated });
+    setEditingAccount(null);
+  };
+  const cancelEditAccount = () => { setEditingAccount(null); };
+  const addAccKw = () => { const v = accKwInput.trim(); if (v && !accDraft.keywords.includes(v)) { setAccDraft(p => ({ ...p, keywords: [...p.keywords, v] })); setAccKwInput(''); } };
+  const removeAccKw = (k) => setAccDraft(p => ({ ...p, keywords: p.keywords.filter(x => x !== k) }));
+  const deleteAccount = (accId) => {
+    const updated = client.accounts.filter(a => a.id !== accId);
+    onUpdate({ accounts: updated, accountCount: updated.length });
+    setExpanded(null);
+  };
 
   const handleAddAccount = (acc) => {
     const newAcc = { ...acc, id: Date.now() };
@@ -466,13 +490,73 @@ function AccountsTab({ client, onUpdate }) {
               <div style={{ padding: '0 20px 18px', borderTop: '1px solid rgba(0,0,0,0.04)', animation: 'fadeIn 150ms ease' }}>
                 {/* Account info */}
                 <div style={{ paddingTop: 16, marginBottom: 16 }}>
-                  <div style={{ display: 'flex', gap: 24, marginBottom: 12 }}>
-                    {acc.target && <div><span style={{ fontSize: 11, color: 'var(--color-text-tertiary)', fontWeight: 500 }}>目标定位</span><div style={{ fontSize: 13, color: 'var(--color-text)', marginTop: 4 }}>{acc.target}</div></div>}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text)' }}>账号信息</span>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {editingAccount === acc.id ? (
+                        <>
+                          <GhostBtn onClick={cancelEditAccount}>取消</GhostBtn>
+                          <PrimaryBtn size="sm" onClick={() => saveAccount(acc.id)}><Check size={12} /> 保存</PrimaryBtn>
+                        </>
+                      ) : (
+                        <>
+                          <GhostBtn onClick={() => startEditAccount(acc)}><Edit3 size={12} /> 编辑</GhostBtn>
+                          <GhostBtn onClick={() => { if (window.confirm('确定删除此账号？')) deleteAccount(acc.id); }}><Trash2 size={12} /> 删除</GhostBtn>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 8, fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase' }}>核心关键词</div>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {acc.keywords.map(k => <Tag key={k} color="var(--color-primary)" bg="var(--color-primary-bg)">{k}</Tag>)}
-                  </div>
+
+                  {editingAccount === acc.id ? (
+                    <div style={{ background: 'rgba(0,0,0,0.015)', borderRadius: 'var(--radius-sm)', padding: '16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                      <div>
+                        <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', fontWeight: 500, marginBottom: 6 }}>账号名称</div>
+                        <input value={accDraft.name} onChange={e => setAccDraft(p => ({ ...p, name: e.target.value }))} style={inputStyle} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', fontWeight: 500, marginBottom: 6 }}>账号风格</div>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {accountStyles.map(s => (
+                            <button key={s} onClick={() => setAccDraft(p => ({ ...p, style: p.style === s ? '' : s }))} style={{
+                              padding: '4px 12px', borderRadius: 'var(--radius-full)', fontSize: 11, fontWeight: 500,
+                              background: accDraft.style === s ? 'var(--color-primary-bg)' : 'rgba(0,0,0,0.03)',
+                              color: accDraft.style === s ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                              border: `1px solid ${accDraft.style === s ? 'var(--color-primary)' : 'rgba(0,0,0,0.04)'}`,
+                              cursor: 'pointer', fontFamily: 'inherit', transition: 'all var(--transition-fast)',
+                            }}>{s}</button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', fontWeight: 500, marginBottom: 6 }}>目标定位</div>
+                        <input value={accDraft.target} onChange={e => setAccDraft(p => ({ ...p, target: e.target.value }))} placeholder="简述账号定位和目标" style={inputStyle} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', fontWeight: 500, marginBottom: 6 }}>核心关键词</div>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: accDraft.keywords.length ? 8 : 0 }}>
+                          {accDraft.keywords.map(k => (
+                            <span key={k} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, padding: '3px 10px', borderRadius: 'var(--radius-full)', background: 'var(--color-primary-bg)', color: 'var(--color-primary)', fontWeight: 500 }}>
+                              {k} <X size={10} style={{ cursor: 'pointer' }} onClick={() => removeAccKw(k)} />
+                            </span>
+                          ))}
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <input value={accKwInput} onChange={e => setAccKwInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addAccKw()} placeholder="输入关键词，回车添加" style={{ ...inputStyle, flex: 1 }} />
+                          <SecondaryBtn onClick={addAccKw}><Plus size={12} /> 添加</SecondaryBtn>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ display: 'flex', gap: 24, marginBottom: 12 }}>
+                        {acc.target && <div><span style={{ fontSize: 11, color: 'var(--color-text-tertiary)', fontWeight: 500 }}>目标定位</span><div style={{ fontSize: 13, color: 'var(--color-text)', marginTop: 4 }}>{acc.target}</div></div>}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 8, fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase' }}>核心关键词</div>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {acc.keywords.map(k => <Tag key={k} color="var(--color-primary)" bg="var(--color-primary-bg)">{k}</Tag>)}
+                      </div>
+                    </>
+                  )}
                 </div>
                 {/* Account plan */}
                 <div style={{ borderTop: '1px solid rgba(0,0,0,0.04)', paddingTop: 16 }}>
@@ -735,7 +819,7 @@ function AddDigitalHumanModal({ type, onClose, onAdd }) {
                 : <div>
                     <Upload size={24} color="var(--color-text-tertiary)" style={{ marginBottom: 8 }} />
                     <div style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>点击上传{isAvatar ? '视频文件' : '音频文件'}</div>
-                    <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginTop: 4 }}>{isAvatar ? '支持 MP4、MOV 格式' : '支持 WAV、MP3 格式'}</div>
+                    <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginTop: 4 }}>{isAvatar ? '支持 MP4、MOV、AVI 格式' : '支持 WAV、MP3 格式'}</div>
                   </div>
               }
             </div>

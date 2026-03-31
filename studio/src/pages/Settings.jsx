@@ -111,6 +111,26 @@ function SuperAdminView({ currentUser, userList, onUpdateUsers }) {
     onUpdateUsers(updated);
   };
 
+  const handleChangeRole = (userId, newRole) => {
+    const updated = userList.map(u => {
+      if (u.id === userId && u.role !== 'superadmin') {
+        return { ...u, role: newRole };
+      }
+      return u;
+    });
+    onUpdateUsers(updated);
+  };
+
+  const handleToggleActive = (userId) => {
+    const updated = userList.map(u => {
+      if (u.id === userId && u.role !== 'superadmin') {
+        return { ...u, active: u.active === false ? true : false };
+      }
+      return u;
+    });
+    onUpdateUsers(updated);
+  };
+
   const handleAddUser = (newUser) => {
     const nextId = Math.max(...userList.map(u => u.id)) + 1;
     const colors = ['#5856D6', '#AF52DE', '#FF2D55', '#007AFF', '#5AC8FA', '#FF9500'];
@@ -176,7 +196,7 @@ function SuperAdminView({ currentUser, userList, onUpdateUsers }) {
           {/* Table header */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: '1.2fr 120px 130px ' + permissionModules.map(() => '120px').join(' '),
+            gridTemplateColumns: '1.2fr 130px 120px 80px ' + permissionModules.map(() => '100px').join(' '),
             padding: '12px 20px',
             borderBottom: '1px solid rgba(0,0,0,0.04)',
             background: 'rgba(0,0,0,0.01)',
@@ -185,21 +205,25 @@ function SuperAdminView({ currentUser, userList, onUpdateUsers }) {
             <span style={thStyle}>成员</span>
             <span style={thStyle}>手机号</span>
             <span style={thStyle}>角色</span>
+            <span style={{ ...thStyle, textAlign: 'center' }}>状态</span>
             {permissionModules.map(m => (
               <span key={m.key} style={{ ...thStyle, textAlign: 'center' }}>{m.label}</span>
             ))}
           </div>
 
           {/* Table rows */}
-          {managedUsers.map((u, i) => (
+          {managedUsers.map((u, i) => {
+            const isActive = u.active !== false;
+            return (
             <div key={u.id} style={{
               display: 'grid',
-              gridTemplateColumns: '1.2fr 120px 130px ' + permissionModules.map(() => '120px').join(' '),
+              gridTemplateColumns: '1.2fr 130px 120px 80px ' + permissionModules.map(() => '100px').join(' '),
               padding: '14px 20px',
               alignItems: 'center',
               borderBottom: i < managedUsers.length - 1 ? '1px solid rgba(0,0,0,0.03)' : 'none',
               transition: 'background 150ms ease',
               gap: 8,
+              opacity: isActive ? 1 : 0.5,
             }}
               onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.015)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
@@ -220,14 +244,37 @@ function SuperAdminView({ currentUser, userList, onUpdateUsers }) {
                 </div>
               </div>
 
-              {/* Phone */}
+              {/* Phone — 不隐藏 */}
               <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-                {u.phone ? u.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2') : '—'}
+                {u.phone || '—'}
               </div>
 
-              {/* Role badge */}
+              {/* Role dropdown */}
               <div>
-                <RoleBadge role={u.role} />
+                <select
+                  value={u.role}
+                  onChange={e => handleChangeRole(u.id, e.target.value)}
+                  style={{
+                    padding: '4px 8px', borderRadius: 'var(--radius-sm)',
+                    fontSize: 11, fontWeight: 500, fontFamily: 'inherit',
+                    border: '1px solid rgba(0,0,0,0.08)',
+                    background: 'rgba(255,255,255,0.6)',
+                    color: roleConfig[u.role]?.color || 'var(--color-text)',
+                    cursor: 'pointer', outline: 'none',
+                    transition: 'border-color var(--transition-fast)',
+                  }}
+                >
+                  <option value="admin">管理员</option>
+                  <option value="member">成员</option>
+                </select>
+              </div>
+
+              {/* Active toggle */}
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 4 }}>
+                <Toggle
+                  checked={isActive}
+                  onChange={() => handleToggleActive(u.id)}
+                />
               </div>
 
               {/* Permission toggles */}
@@ -236,11 +283,13 @@ function SuperAdminView({ currentUser, userList, onUpdateUsers }) {
                   <Toggle
                     checked={u.permissions?.[m.key] ?? true}
                     onChange={() => handleTogglePermission(u.id, m.key)}
+                    disabled={!isActive}
                   />
                 </div>
               ))}
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

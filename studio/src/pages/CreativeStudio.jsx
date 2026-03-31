@@ -350,11 +350,20 @@ function SchemeLayer({ sourceText, onSchemeConfirm, scheme, setScheme }) {
   const [generating, setGenerating] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editDraft, setEditDraft] = useState('');
+  const [contextBuild, setContextBuild] = useState('软植入');
+  const [duration, setDuration] = useState('60秒');
+
+  const contextOptions = [
+    { value: '强关联', label: '强关联', desc: '每段都围绕产品，偏转化' },
+    { value: '软植入', label: '软植入', desc: '前70%干货，自然过渡到产品' },
+    { value: '不结合', label: '不结合', desc: '纯涨粉内容，不涉及产品' },
+  ];
+  const durationOptions = ['15秒', '30秒', '45秒', '60秒', '90秒', '120秒'];
 
   const generate = () => {
     setGenerating(true);
     setTimeout(() => {
-      const mockScheme = `## 视频主题\n烟酰胺的 3 个真相，护肤 5 年踩坑总结\n\n## 核心卖点\n成分党视角 · 科学实证 · 性价比优先\n\n## 推荐形式\n口播 + 分镜头（知识科普型，2-3 分钟）\n\n## 内容框架\n1. 开头：反常识钩子 → 引发好奇\n2. 痛点放大：常见误区\n3. 知识点1：浓度不是越高越好\n4. 知识点2：搭配禁忌\n5. 知识点3：剂型决定效果\n6. 产品引入：基于标准推荐\n7. CTA：引导互动\n\n## 分镜头规划\n- 镜头1：主播正脸，反问式开场\n- 镜头2：产品特写，成分表标注\n- 镜头3：对比实验画面\n- 镜头4：产品使用过程\n- 镜头5：数据卡片总结\n\n## 配图规划\n- 封面图：悬念标题 + 产品半身\n- 知识卡片：3个成分对比图\n- 产品主图：白底精华液特写`;
+      const mockScheme = `## 视频主题\n烟酰胺的 3 个真相，护肤 5 年踩坑总结\n\n## 方案参数\n- 业务结合：${contextBuild}\n- 目标时长：${duration}\n\n## 核心卖点\n成分党视角 · 科学实证 · 性价比优先\n\n## 推荐形式\n口播 + 分镜头（知识科普型）\n\n## 内容框架\n1. 开头：反常识钩子 → 引发好奇\n2. 痛点放大：常见误区\n3. 知识点1：浓度不是越高越好\n4. 知识点2：搭配禁忌\n5. 知识点3：剂型决定效果\n${contextBuild !== '不结合' ? '6. 产品引入：基于标准推荐\n' : ''}7. CTA：引导互动\n\n## 分镜头规划（${duration}）\n- 镜头1：主播正脸，反问式开场\n- 镜头2：产品特写，成分表标注\n- 镜头3：对比实验画面\n- 镜头4：数据卡片总结\n\n## 配图规划\n- 封面图：悬念标题 + 产品半身\n- 知识卡片：3个成分对比图\n- 产品主图：白底精华液特写`;
       setScheme(mockScheme);
       setGenerating(false);
     }, 1500);
@@ -373,9 +382,69 @@ function SchemeLayer({ sourceText, onSchemeConfirm, scheme, setScheme }) {
       )}
 
       {!scheme ? (
-        <PrimaryBtn onClick={generate} disabled={generating}>
-          {generating ? <><RefreshCw size={13} style={{ animation: 'spin 1s linear infinite' }} /> AI 生成方案中...</> : <><Sparkles size={14} /> AI 一键生成方案</>}
-        </PrimaryBtn>
+        <div>
+          {/* 方案配置区 */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 18, padding: '18px', background: 'rgba(255,255,255,0.4)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(0,0,0,0.04)', backdropFilter: 'blur(8px)' }}>
+            {/* 业务结合方式 */}
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Zap size={12} color="var(--color-primary)" /> 业务结合方式
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {contextOptions.map(o => (
+                  <div key={o.value} onClick={() => setContextBuild(o.value)} style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                    background: contextBuild === o.value ? 'var(--color-primary-bg)' : 'rgba(255,255,255,0.5)',
+                    border: `1px solid ${contextBuild === o.value ? 'var(--color-primary)' : 'rgba(0,0,0,0.04)'}`,
+                    borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'all var(--transition-fast)',
+                  }}>
+                    <div style={{ width: 16, height: 16, borderRadius: '50%', border: `2px solid ${contextBuild === o.value ? 'var(--color-primary)' : 'rgba(0,0,0,0.12)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {contextBuild === o.value && <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--color-primary)' }} />}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text)' }}>{o.label}</div>
+                      <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginTop: 1 }}>{o.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 目标时长 */}
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Play size={12} color="var(--color-primary)" /> 目标时长
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {durationOptions.map(d => (
+                  <button key={d} onClick={() => setDuration(d)} style={{
+                    padding: '8px 16px', borderRadius: 'var(--radius-sm)',
+                    fontSize: 12, fontWeight: duration === d ? 600 : 400, fontFamily: 'inherit',
+                    background: duration === d ? 'var(--color-primary)' : 'rgba(255,255,255,0.5)',
+                    color: duration === d ? '#FFF' : 'var(--color-text-secondary)',
+                    border: `1px solid ${duration === d ? 'var(--color-primary)' : 'rgba(0,0,0,0.06)'}`,
+                    cursor: 'pointer', transition: 'all var(--transition-fast)',
+                    boxShadow: duration === d ? '0 2px 8px rgba(0,113,227,0.2)' : 'none',
+                  }}>{d}</button>
+                ))}
+              </div>
+              <div style={{ marginTop: 12, padding: '10px 12px', background: 'rgba(0,113,227,0.03)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(0,113,227,0.06)' }}>
+                <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', lineHeight: 1.6 }}>
+                  {duration === '15秒' && '⚡ 极短视频，适合信息流广告、产品闪现'}
+                  {duration === '30秒' && '🎯 短视频黄金时长，适合单一卖点快速输出'}
+                  {duration === '45秒' && '📱 适合抖音/快手，可展开1-2个知识点'}
+                  {duration === '60秒' && '📝 标准时长，适合完整科普或产品介绍'}
+                  {duration === '90秒' && '📖 中长视频，适合深度内容或故事型'}
+                  {duration === '120秒' && '🎬 长视频，适合B站/视频号深度内容'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <PrimaryBtn onClick={generate} disabled={generating}>
+            {generating ? <><RefreshCw size={13} style={{ animation: 'spin 1s linear infinite' }} /> AI 生成方案中...</> : <><Sparkles size={14} /> AI 一键生成方案</>}
+          </PrimaryBtn>
+        </div>
       ) : (
         <div style={{ animation: 'fadeIn 200ms ease' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -470,10 +539,15 @@ function ProductionLayer({ confirmed, schemeChanged, onResetChanged, project }) 
 /* ── Tab: 口播稿 ──────────────────────────────────────────────── */
 
 function ScriptTab({ project }) {
-  const [script, setScript] = useState(`【开头钩子 - 0~8s】\n"你知道为什么用了三年烟酰胺，皮肤还是没变白吗？"\n\n【痛点放大 - 8~25s】\n很多人买了一堆烟酰胺产品，照镜子还是暗沉——不是产品无效，是你根本没搞清楚这三个真相。\n\n【知识点1 - 25~55s】\n真相一：浓度不是越高越好。5%以上容易致敏，2%~4%才是黄金区间...\n\n【知识点2 - 55~85s】\n真相二：搭配很关键。烟酰胺+维C同时用？你在浪费两瓶精华...\n\n【知识点3 - 85~110s】\n真相三：剂型决定渗透率。精华>乳液>面霜，同浓度效果差3倍...\n\n【产品引入 - 110~125s】\n基于这三个标准，我测了20款，最终留下这一瓶...\n\n【CTA - 125~135s】\n评论区告诉我你现在用的是哪个品牌，我帮你看看踩没踩坑。`);
+  const [script, setScript] = useState(`你知道为什么用了三年烟酰胺，皮肤还是没变白吗？\n\n很多人买了一堆烟酰胺产品，照镜子还是暗沉——不是产品无效，是你根本没搞清楚这三个真相。\n\n真相一：浓度不是越高越好。5%以上容易致敏，2%到4%才是黄金区间。大部分人根本不知道自己买的是多少浓度，稀里糊涂往脸上抹。\n\n真相二：搭配很关键。烟酰胺加维C同时用？你在浪费两瓶精华。这两个成分放在一起会互相干扰，效果大打折扣。\n\n真相三：剂型决定渗透率。精华的吸收效率远超乳液和面霜，同样浓度效果能差3倍。你花了面霜的钱，只吸收了精华三分之一的量。\n\n基于这三个标准，我测了市面上20款产品，最终只留下这一瓶。\n\n评论区告诉我你现在用的是哪个品牌，我帮你看看踩没踩坑。`);
   const [selectedAvatar, setSelectedAvatar] = useState(0);
   const [selectedVoice, setSelectedVoice] = useState('warm_f');
-  const [videoStatus, setVideoStatus] = useState('idle');
+  const [videoStatus, setVideoStatus] = useState('idle'); // idle | queuing | generating | done
+  const [videoHistory, setVideoHistory] = useState([]); // [{version, script, avatar, voice, duration, createdAt}]
+  const [activeVersion, setActiveVersion] = useState(0); // index in videoHistory
+  const [isPlaying, setIsPlaying] = useState(false);
+  const progressRef = useRef(null);
+  const timerRef = useRef(null);
 
   const client = clients.find(c => c.id === project?.clientId);
   const dh = client?.digitalHumans || { avatars: [], voices: [] };
@@ -482,13 +556,155 @@ function ScriptTab({ project }) {
     { id: 'pro_f', label: '专业女声', desc: '沉稳 · 有质感' },
   ];
 
+  const estimatedSeconds = Math.round(script.length / 4.5);
+  const formatTime = (s) => `${Math.floor(s / 60)} 分 ${s % 60} 秒`;
+  const currentVideo = videoHistory[activeVersion] || null;
+
+  const startGenerate = () => {
+    setVideoStatus('queuing');
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      setVideoStatus('generating');
+      timerRef.current = setTimeout(() => {
+        const newVersion = {
+          version: videoHistory.length + 1,
+          script: script.slice(0, 60) + '...',
+          scriptFull: script,
+          avatarName: (dh.avatars[selectedAvatar] || { name: '默认形象' }).name,
+          voiceLabel: VOICES.find(v => v.id === selectedVoice)?.label || '默认音色',
+          duration: estimatedSeconds,
+          createdAt: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+        };
+        setVideoHistory(prev => [...prev, newVersion]);
+        setActiveVersion(videoHistory.length); // point to the new one
+        setVideoStatus('done');
+        setIsPlaying(false);
+      }, 3000);
+    }, 2000);
+  };
+
+  const regenerate = () => {
+    setIsPlaying(false);
+    startGenerate();
+  };
+
   return (
     <div>
-      <PromptTemplatePicker toolType="script" onSelect={p => setScript(p)} />
+      {/* 视频预览区域 —— 有历史版本时显示 */}
+      {videoHistory.length > 0 && videoStatus !== 'queuing' && videoStatus !== 'generating' && (
+        <div style={{ marginBottom: 24, animation: 'fadeIn 300ms ease' }}>
+          {/* 版本切换标签栏 */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Video size={14} color="var(--color-primary)" />
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>视频预览</span>
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <GhostBtn onClick={() => {}}><Download size={12} /> 下载</GhostBtn>
+            </div>
+          </div>
+
+          {/* 版本切换按钮组 */}
+          {videoHistory.length > 1 && (
+            <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+              {videoHistory.map((v, i) => (
+                <button key={i} onClick={() => { setActiveVersion(i); setIsPlaying(false); }} style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '6px 14px', borderRadius: 'var(--radius-full)', fontSize: 11, fontWeight: 500, fontFamily: 'inherit',
+                  background: activeVersion === i ? 'var(--color-primary)' : 'rgba(255,255,255,0.5)',
+                  color: activeVersion === i ? '#FFF' : 'var(--color-text-secondary)',
+                  border: `1px solid ${activeVersion === i ? 'var(--color-primary)' : 'rgba(0,0,0,0.06)'}`,
+                  cursor: 'pointer', transition: 'all var(--transition-fast)',
+                  boxShadow: activeVersion === i ? '0 2px 8px rgba(0,113,227,0.2)' : 'none',
+                }}>
+                  第 {v.version} 版
+                  <span style={{ fontSize: 10, opacity: 0.7 }}>{v.createdAt}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Mock 视频播放器 */}
+          <div style={{
+            position: 'relative', width: '100%', aspectRatio: '16/9',
+            background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
+            borderRadius: 'var(--radius-md)', overflow: 'hidden',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+          }}>
+            {/* 数字人形象占位 */}
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12 }}>
+              <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)', border: '2px solid rgba(255,255,255,0.15)' }}>
+                <DigitalHumanIllustration size={40} />
+              </div>
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>
+                {currentVideo?.avatarName || '默认形象'} · {currentVideo?.voiceLabel || '默认音色'}
+              </span>
+              {/* 版本角标 */}
+              <div style={{ position: 'absolute', top: 12, left: 12, padding: '3px 10px', borderRadius: 'var(--radius-full)', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', fontSize: 10, color: '#FFF', fontWeight: 500 }}>
+                V{currentVideo?.version}
+              </div>
+              {/* 字幕条 */}
+              {isPlaying && (
+                <div style={{ position: 'absolute', bottom: 48, left: '10%', right: '10%', textAlign: 'center', padding: '8px 16px', background: 'rgba(0,0,0,0.6)', borderRadius: 'var(--radius-sm)', backdropFilter: 'blur(4px)', animation: 'fadeIn 200ms ease' }}>
+                  <span style={{ fontSize: 13, color: '#FFF', lineHeight: 1.6 }}>{currentVideo?.script || ''}</span>
+                </div>
+              )}
+            </div>
+            {/* 播放按钮 */}
+            <div onClick={() => setIsPlaying(!isPlaying)} style={{
+              position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', background: isPlaying ? 'transparent' : 'rgba(0,0,0,0.2)',
+              transition: 'background 200ms ease',
+            }}>
+              {!isPlaying && (
+                <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)', transition: 'transform 150ms ease' }}>
+                  <Play size={24} color="#FFF" fill="#FFF" style={{ marginLeft: 3 }} />
+                </div>
+              )}
+            </div>
+            {/* 进度条 */}
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, background: 'rgba(255,255,255,0.15)' }}>
+              <div ref={progressRef} style={{ height: '100%', background: 'var(--color-primary)', width: isPlaying ? '65%' : '0%', transition: 'width 2s linear', borderRadius: '0 2px 2px 0' }} />
+            </div>
+            {/* 时长标签 */}
+            <div style={{ position: 'absolute', bottom: 8, right: 12, fontSize: 10, color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>
+              {isPlaying ? `0:${Math.floor((currentVideo?.duration || 60) * 0.65).toString().padStart(2, '0')}` : '0:00'} / {Math.floor((currentVideo?.duration || 60) / 60)}:{((currentVideo?.duration || 60) % 60).toString().padStart(2, '0')}
+            </div>
+          </div>
+
+          {/* 当前版本信息 */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, padding: '8px 12px', background: 'rgba(0,113,227,0.03)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(0,113,227,0.06)' }}>
+            <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>
+              第 {currentVideo?.version} 版 · 时长 {formatTime(currentVideo?.duration || 60)} · {currentVideo?.avatarName} · {currentVideo?.voiceLabel} · 生成于 {currentVideo?.createdAt}
+            </span>
+            <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>共 {videoHistory.length} 个版本</span>
+          </div>
+        </div>
+      )}
+
+      {/* 生成中状态 */}
+      {(videoStatus === 'queuing' || videoStatus === 'generating') && (
+        <div style={{ marginBottom: 24, padding: '28px', textAlign: 'center', background: 'rgba(0,113,227,0.03)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(0,113,227,0.08)', animation: 'fadeIn 200ms ease' }}>
+          <RefreshCw size={24} color="var(--color-primary)" style={{ animation: 'spin 1.5s linear infinite', marginBottom: 12 }} />
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', marginBottom: 4 }}>
+            {videoStatus === 'queuing' ? '排队中...' : '视频生成中...'}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>
+            {videoStatus === 'queuing' ? '预计等待 1-2 分钟' : '正在合成数字人视频，预计 2-3 分钟'}
+          </div>
+          {videoStatus === 'generating' && (
+            <div style={{ marginTop: 14, width: '60%', height: 4, background: 'rgba(0,0,0,0.06)', borderRadius: 2, margin: '14px auto 0', overflow: 'hidden' }}>
+              <div style={{ height: '100%', background: 'var(--color-primary)', borderRadius: 2, width: '60%', animation: 'progressPulse 2s ease-in-out infinite' }} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 口播稿编辑区 */}
       <textarea value={script} onChange={e => setScript(e.target.value)} placeholder="口播稿内容..." style={{ ...inputStyle, minHeight: 200, resize: 'vertical', lineHeight: 1.8, padding: '14px', marginBottom: 12 }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 22 }}>
-        <PrimaryBtn size="sm"><Sparkles size={12} /> AI 重新生成</PrimaryBtn>
-        <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>约 135 秒 · 2 分 15 秒</span>
+        <PrimaryBtn size="sm"><Sparkles size={12} /> AI 重新生成文案</PrimaryBtn>
+        <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>约 {estimatedSeconds} 秒 · {formatTime(estimatedSeconds)}</span>
       </div>
 
       <SectionDivider label="数字人配置" />
@@ -529,12 +745,14 @@ function ScriptTab({ project }) {
           </div>
         </div>
       </div>
-      <PrimaryBtn onClick={() => setVideoStatus(videoStatus === 'idle' ? 'queuing' : 'idle')}>
-        <Play size={13} /> {videoStatus === 'idle' ? '生成数字人视频' : '重新生成'}
-      </PrimaryBtn>
-      {videoStatus !== 'idle' && (
-        <span style={{ fontSize: 12, color: 'var(--color-primary)', fontWeight: 500, marginLeft: 10 }}>● 排队中，预计 3 分钟</span>
-      )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <PrimaryBtn onClick={videoStatus === 'done' ? regenerate : startGenerate} disabled={videoStatus === 'queuing' || videoStatus === 'generating'}>
+          {videoStatus === 'done' ? <><RefreshCw size={13} /> 重新生成视频</> : <><Play size={13} /> 生成数字人视频</>}
+        </PrimaryBtn>
+        {videoStatus === 'done' && (
+          <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>修改文案或配置后，点击重新生成</span>
+        )}
+      </div>
     </div>
   );
 }
