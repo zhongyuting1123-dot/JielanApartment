@@ -485,8 +485,10 @@ function SchemeLayer({ sourceText, onSchemeConfirm, scheme, setScheme }) {
 // 生产层 — 4 Tab
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-function ProductionLayer({ confirmed, schemeChanged, onResetChanged, project }) {
+function ProductionLayer({ confirmed, schemeChanged, onResetChanged, project, schemeTopic }) {
   const [tab, setTab] = useState('script');
+  const [topic, setTopic] = useState(schemeTopic || '烟酰胺的3个真相，护肤5年踩坑总结');
+  const [editingTopic, setEditingTopic] = useState(false);
   const tabs = [
     { id: 'script', label: '口播稿', icon: <Mic size={13} /> },
     { id: 'copy', label: '发布文案', icon: <FileText size={13} /> },
@@ -505,6 +507,32 @@ function ProductionLayer({ confirmed, schemeChanged, onResetChanged, project }) 
 
   return (
     <div style={{ marginTop: 14 }}>
+      {/* 项目主题 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18, padding: '12px 16px', background: 'rgba(0,113,227,0.03)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(0,113,227,0.08)' }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>项目主题</span>
+        {editingTopic ? (
+          <input
+            value={topic}
+            onChange={e => setTopic(e.target.value)}
+            onBlur={() => setEditingTopic(false)}
+            onKeyDown={e => { if (e.key === 'Enter') setEditingTopic(false); }}
+            autoFocus
+            style={{ ...inputStyle, fontSize: 14, fontWeight: 600, padding: '6px 10px', background: 'rgba(255,255,255,0.8)' }}
+          />
+        ) : (
+          <span
+            onClick={() => setEditingTopic(true)}
+            style={{ flex: 1, fontSize: 14, fontWeight: 600, color: 'var(--color-text)', cursor: 'pointer', padding: '4px 0' }}
+            title="点击编辑主题"
+          >{topic}</span>
+        )}
+        {!editingTopic && (
+          <button onClick={() => setEditingTopic(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex' }}>
+            <Edit3 size={13} color="var(--color-text-tertiary)" />
+          </button>
+        )}
+      </div>
+
       {/* Scheme changed warning */}
       {schemeChanged && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, padding: '10px 14px', background: 'rgba(255,149,0,0.06)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(255,149,0,0.15)' }}>
@@ -866,8 +894,125 @@ function ImagesTab() { return <ImageGenTab type="image" />; }
 // Project List
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+function NewProjectModal({ onClose, onCreate }) {
+  const [step, setStep] = useState(1); // 1=选客户, 2=选账号
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [selectedAccount, setSelectedAccount] = useState(null);
+
+  const handleCreate = () => {
+    if (!selectedClient || !selectedAccount) return;
+    const newProject = {
+      id: Date.now(),
+      clientId: selectedClient.id,
+      clientName: selectedClient.name,
+      name: '新内容项目',
+      account: selectedAccount.name,
+      platform: selectedAccount.platform,
+      status: 'draft',
+      assigneeId: 0,
+      assigneeName: '',
+      createdAt: new Date().toISOString().slice(0, 10),
+      updatedAt: new Date().toISOString().slice(0, 10),
+    };
+    projects.push(newProject);
+    onCreate(newProject.id);
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.25)', backdropFilter: 'blur(8px)' }} />
+      <div onClick={e => e.stopPropagation()} style={{ position: 'relative', width: 520, maxHeight: '80vh', overflow: 'auto', ...glassCard, padding: '28px 32px', boxShadow: 'var(--shadow-xl)', animation: 'fadeIn 200ms ease' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div>
+            <h2 style={{ fontSize: 17, fontWeight: 700, color: 'var(--color-text)', margin: 0 }}>新建项目</h2>
+            <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 4 }}>
+              {step === 1 ? '第 1 步：选择客户' : '第 2 步：选择发布账号'}
+            </p>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+            <X size={18} color="var(--color-text-tertiary)" />
+          </button>
+        </div>
+
+        {/* 步骤指示器 */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 22 }}>
+          {[1, 2].map(s => (
+            <div key={s} style={{ flex: 1, height: 3, borderRadius: 2, background: s <= step ? 'var(--color-primary)' : 'rgba(0,0,0,0.06)', transition: 'background 0.3s' }} />
+          ))}
+        </div>
+
+        {step === 1 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {clients.filter(c => c.status === 'active').map(c => (
+              <div key={c.id} onClick={() => { setSelectedClient(c); setSelectedAccount(null); setStep(2); }} style={{
+                display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
+                borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                border: '1px solid rgba(0,0,0,0.06)', background: 'rgba(255,255,255,0.6)',
+                transition: 'all var(--transition-fast)',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.background = 'rgba(0,113,227,0.03)'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(0,0,0,0.06)'; e.currentTarget.style.background = 'rgba(255,255,255,0.6)'; }}
+              >
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, var(--color-primary), #5856D6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: 14, fontWeight: 600 }}>{c.avatar}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)' }}>{c.name}</div>
+                  <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>{c.industry} · {c.direction}</div>
+                </div>
+                <ChevronRight size={16} color="var(--color-text-tertiary)" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {step === 2 && selectedClient && (
+          <div>
+            {/* 返回选客户 */}
+            <button onClick={() => setStep(1)} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', marginBottom: 14, padding: 0 }}>
+              ← 重新选择客户（当前：{selectedClient.name}）
+            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {(selectedClient.accounts || []).map(acc => {
+                const isSelected = selectedAccount?.id === acc.id && selectedAccount?.platform === acc.platform;
+                return (
+                  <div key={`${acc.platform}-${acc.id}`} onClick={() => setSelectedAccount(acc)} style={{
+                    display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
+                    borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                    border: `1px solid ${isSelected ? 'var(--color-primary)' : 'rgba(0,0,0,0.06)'}`,
+                    background: isSelected ? 'rgba(0,113,227,0.04)' : 'rgba(255,255,255,0.6)',
+                    transition: 'all var(--transition-fast)',
+                  }}
+                    onMouseEnter={e => { if (!isSelected) e.currentTarget.style.borderColor = 'rgba(0,113,227,0.3)'; }}
+                    onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor = 'rgba(0,0,0,0.06)'; }}
+                  >
+                    <PlatformBadge platform={acc.platform} size={28} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text)' }}>{acc.name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>{acc.style}</div>
+                    </div>
+                    {isSelected && <Check size={16} color="var(--color-primary)" />}
+                  </div>
+                );
+              })}
+            </div>
+            <button onClick={handleCreate} disabled={!selectedAccount} style={{
+              width: '100%', marginTop: 20, padding: '11px 0', borderRadius: 'var(--radius-sm)',
+              fontSize: 14, fontWeight: 600, fontFamily: 'inherit', border: 'none', cursor: selectedAccount ? 'pointer' : 'not-allowed',
+              background: selectedAccount ? 'var(--color-primary)' : 'rgba(0,0,0,0.06)',
+              color: selectedAccount ? '#FFF' : 'var(--color-text-tertiary)',
+              transition: 'all var(--transition-fast)',
+            }}>
+              创建项目
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ProjectList({ onOpen, currentUser }) {
   const [filter, setFilter] = useState('all');
+  const [showNewModal, setShowNewModal] = useState(false);
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
   const myProjects = isAdmin ? projects : projects.filter(p => p.assigneeId === currentUser?.id);
   const filters = [
@@ -883,8 +1028,9 @@ function ProjectList({ onOpen, currentUser }) {
           <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--color-text)', letterSpacing: '-0.5px' }}>创作工作台</h1>
           <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 6 }}>{isAdmin ? '所有内容项目的生产与管理' : '我负责的内容项目'}</p>
         </div>
-        <PrimaryBtn><Plus size={14} /> 新建项目</PrimaryBtn>
+        <PrimaryBtn onClick={() => setShowNewModal(true)}><Plus size={14} /> 新建项目</PrimaryBtn>
       </div>
+      {showNewModal && <NewProjectModal onClose={() => setShowNewModal(false)} onCreate={(id) => { setShowNewModal(false); onOpen(id); }} />}
       <div style={{ padding: '28px 40px', maxWidth: 1080 }}>
         <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
           {filters.map(f => (
