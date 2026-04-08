@@ -1079,28 +1079,35 @@ function ProjectDetail({ projectId, onBack }) {
   const statusFlow = ['draft', 'production', 'completed', 'published'];
   const currentIdx = statusFlow.indexOf(project.status);
 
+  const [activeLayer, setActiveLayer] = useState('source');
   const [sourceText, setSourceText] = useState('');
   const [scheme, setScheme] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [schemeChanged, setSchemeChanged] = useState(false);
   const [confirmedScheme, setConfirmedScheme] = useState('');
 
-  const handleSourceReady = (text) => { setSourceText(text); };
-  const handleSchemeConfirm = (s) => { setConfirmed(true); setConfirmedScheme(s); setSchemeChanged(false); };
+  const handleSourceReady = (text) => { setSourceText(text); setActiveLayer('scheme'); };
+  const handleSchemeConfirm = (s) => { setConfirmed(true); setConfirmedScheme(s); setSchemeChanged(false); setActiveLayer('production'); };
 
-  // Track scheme edits after confirmation
   const handleSetScheme = (s) => {
     setScheme(s);
     if (confirmed && s !== confirmedScheme) setSchemeChanged(true);
   };
 
+  const layerTabs = [
+    { id: 'source', label: '来源层', badge: sourceText ? '已选择' : '三选一', badgeColor: sourceText ? 'var(--color-green)' : 'var(--color-text-secondary)', badgeBg: sourceText ? 'var(--color-green-bg)' : 'rgba(0,0,0,0.04)' },
+    { id: 'scheme', label: '方案层', badge: scheme ? '已生成' : '待生成', badgeColor: scheme ? 'var(--color-green)' : 'var(--color-text-secondary)', badgeBg: scheme ? 'var(--color-green-bg)' : 'rgba(0,0,0,0.04)' },
+    { id: 'production', label: '生产层', badge: confirmed ? '就绪' : '需先确认方案', badgeColor: confirmed ? 'var(--color-green)' : 'var(--color-orange)', badgeBg: confirmed ? 'var(--color-green-bg)' : 'var(--color-orange-bg)' },
+  ];
+
   return (
     <div style={{ flex: 1, overflow: 'auto', animation: 'fadeIn 250ms ease' }}>
-      <div style={{ ...glassHeader, padding: '22px 40px' }}>
+      {/* Header */}
+      <div style={{ ...glassHeader, padding: '22px 40px 0' }}>
         <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--color-primary)', fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', marginBottom: 16, fontFamily: 'inherit', fontWeight: 500 }}>
           <ChevronRight size={14} style={{ transform: 'rotate(180deg)' }} /> 所有项目
         </button>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 }}>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--color-text)', marginBottom: 8, letterSpacing: '-0.4px' }}>{project.name}</h1>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--color-text-secondary)' }}>
@@ -1127,18 +1134,39 @@ function ProjectDetail({ projectId, onBack }) {
             })}
           </div>
         </div>
+
+        {/* Layer tabs */}
+        <div style={{ display: 'flex', gap: 0 }}>
+          {layerTabs.map(t => {
+            const isActive = activeLayer === t.id;
+            return (
+              <button key={t.id} onClick={() => setActiveLayer(t.id)} style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '12px 20px', fontSize: 14, fontWeight: isActive ? 600 : 400,
+                color: isActive ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                borderBottom: isActive ? '2px solid var(--color-primary)' : '2px solid transparent',
+                marginBottom: -1, transition: 'all var(--transition-fast)',
+              }}>
+                {t.label}
+                <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 'var(--radius-full)', background: t.badgeBg, color: t.badgeColor, fontWeight: 500 }}>{t.badge}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <div style={{ padding: '28px 40px', maxWidth: 960 }}>
-        <Accordion title="来源层" badge="三选一">
+      {/* Layer content */}
+      <div style={{ padding: '28px 40px', maxWidth: 960, animation: 'fadeIn 200ms ease' }}>
+        {activeLayer === 'source' && (
           <SourceLayer project={project} onSourceReady={handleSourceReady} />
-        </Accordion>
-        <Accordion title="方案层" badge={scheme ? '已生成' : '待生成'} defaultOpen={!!sourceText}>
+        )}
+        {activeLayer === 'scheme' && (
           <SchemeLayer sourceText={sourceText} onSchemeConfirm={handleSchemeConfirm} scheme={scheme} setScheme={handleSetScheme} />
-        </Accordion>
-        <Accordion title="生产层" defaultOpen={confirmed} locked={!confirmed}>
+        )}
+        {activeLayer === 'production' && (
           <ProductionLayer confirmed={confirmed} schemeChanged={schemeChanged} onResetChanged={() => setSchemeChanged(false)} project={project} />
-        </Accordion>
+        )}
       </div>
     </div>
   );

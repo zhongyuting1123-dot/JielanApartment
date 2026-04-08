@@ -68,6 +68,24 @@ const tools = [
     status: 'ready',
   },
   {
+    id: 'image-wash',
+    name: 'AI 洗图',
+    desc: '换背景 / 风格变换，快速生成差异化电商素材',
+    icon: Wand2,
+    color: '#FF6B35',
+    tags: ['电商', '洗图', 'AI'],
+    status: 'ready',
+  },
+  {
+    id: 'video-wash',
+    name: 'AI 洗视频',
+    desc: '视频风格转换 / 元素替换，一键生成新视频',
+    icon: Film,
+    color: '#8B5CF6',
+    tags: ['视频', '洗视频', 'AI'],
+    status: 'ready',
+  },
+  {
     id: 'text-wash',
     name: '文案洗稿',
     desc: '粘贴抖音链接或文本，AI 识别并改写文案',
@@ -535,6 +553,12 @@ export default function AIToolbox() {
   }
   if (activeTool === 'ai-sticker') {
     return <ToolPage toolDef={toolDef} onBack={onBack}><StickerToolInner /></ToolPage>;
+  }
+  if (activeTool === 'image-wash') {
+    return <ImageWashTool onBack={onBack} />;
+  }
+  if (activeTool === 'video-wash') {
+    return <VideoWashTool onBack={onBack} />;
   }
 
   return (
@@ -1646,6 +1670,505 @@ function ResultCard({ result, index, onPreview, onRemove, onRegenerate }) {
         <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text)', marginBottom: 2 }}>{result.label}</div>
         <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)' }}>
           旋转 {result.params.rotate_deg}° · 推拉 {result.params.move_forward} · 俯仰 {result.params.vertical_tilt}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// AI 洗图
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const BG_PRESETS = [
+  { label: '纯白', prompt: '纯白色背景，干净简约，专业商拍' },
+  { label: '大理石', prompt: '大理石纹理台面，高级质感' },
+  { label: '户外草地', prompt: '阳光草地，自然清新，户外氛围' },
+  { label: '节日氛围', prompt: '节日装饰背景，温馨喜庆，彩带气球' },
+  { label: '科技感', prompt: '深色科技背景，蓝紫光效，未来感' },
+  { label: '木纹桌面', prompt: '复古木纹桌面，温暖质感，文艺风' },
+];
+
+const STYLE_PRESETS = [
+  { label: '写实摄影', color: '#0071E3' },
+  { label: 'INS风', color: '#E1306C' },
+  { label: '日系清新', color: '#43e97b' },
+  { label: '赛博朋克', color: '#8B5CF6' },
+  { label: '水彩手绘', color: '#FF6B9D' },
+  { label: '扁平插画', color: '#FF9F0A' },
+];
+
+function ImageWashTool({ onBack }) {
+  const [tab, setTab] = useState('bg'); // bg | style
+  const [sourceImage, setSourceImage] = useState(null);
+  const [selectedBg, setSelectedBg] = useState(null);
+  const [customBg, setCustomBg] = useState('');
+  const [selectedStyle, setSelectedStyle] = useState(null);
+  const [variation, setVariation] = useState(50);
+  const [customStyle, setCustomStyle] = useState('');
+  const [ratio, setRatio] = useState('1:1');
+  const [count, setCount] = useState(4);
+  const [results, setResults] = useState([]);
+  const [preview, setPreview] = useState(null);
+
+  const handleUpload = (e) => {
+    const file = e?.dataTransfer?.files?.[0] || { name: 'product_sample.jpg' };
+    const url = file instanceof File ? URL.createObjectURL(file) : null;
+    setSourceImage({ name: file.name || 'product_sample.jpg', url });
+  };
+
+  const generate = () => {
+    const label = tab === 'bg' ? (selectedBg?.label || '自定义背景') : (selectedStyle || '自定义风格');
+    for (let i = 0; i < count; i++) {
+      const id = Date.now() + i;
+      setTimeout(() => {
+        setResults(prev => [...prev, { id, label: `${label} #${prev.length + 1}`, status: 'generating', colorIdx: (prev.length) % COVER_COLORS.length }]);
+        setTimeout(() => {
+          setResults(prev => prev.map(r => r.id === id ? { ...r, status: 'done' } : r));
+        }, 1500 + Math.random() * 2000);
+      }, i * 400);
+    }
+  };
+
+  const tabs = [
+    { id: 'bg', label: '换背景' },
+    { id: 'style', label: '风格变换' },
+  ];
+
+  return (
+    <div style={{ flex: 1, overflow: 'auto', animation: 'fadeIn 250ms ease' }}>
+      {/* Header */}
+      <div style={{ ...glassHeader, padding: '22px 40px' }}>
+        <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--color-primary)', fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', marginBottom: 14, fontFamily: 'inherit', fontWeight: 500 }}>
+          <ArrowLeft size={14} /> AI 工具箱
+        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,107,53,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Wand2 size={20} color="#FF6B35" strokeWidth={1.8} />
+          </div>
+          <div>
+            <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--color-text)', letterSpacing: '-0.4px' }}>AI 洗图</h2>
+            <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>换背景 / 风格变换，快速生成差异化电商素材</p>
+          </div>
+        </div>
+        {/* Sub tabs */}
+        <div style={{ display: 'flex', gap: 0, marginTop: 18, borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => { setTab(t.id); setResults([]); }} style={{
+              padding: '10px 20px', fontSize: 13, fontWeight: tab === t.id ? 600 : 400,
+              color: tab === t.id ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+              background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+              borderBottom: tab === t.id ? '2px solid var(--color-primary)' : '2px solid transparent',
+              marginBottom: -1, transition: 'color var(--transition-fast)',
+            }}>{t.label}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Body */}
+      <div style={{ padding: '28px 40px 48px', maxWidth: 1080 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 24, alignItems: 'start' }}>
+          {/* Left panel */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Upload */}
+            <div style={{ ...glassCard, padding: 20, borderRadius: 'var(--radius-md)' }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text)', marginBottom: 12 }}>
+                {tab === 'bg' ? '上传产品图' : '上传参考图'}
+              </div>
+              {sourceImage ? (
+                <div>
+                  <div style={{ width: '100%', aspectRatio: '1', borderRadius: 'var(--radius-sm)', background: sourceImage.url ? `url(${sourceImage.url}) center/contain no-repeat` : 'linear-gradient(135deg, #f5f5f7, #e8e8ed)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(0,0,0,0.06)' }}>
+                    {!sourceImage.url && <Image size={32} color="var(--color-text-quaternary)" />}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+                    <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>{sourceImage.name}</span>
+                    <button onClick={() => setSourceImage(null)} style={{ fontSize: 11, color: 'var(--color-text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>更换</button>
+                  </div>
+                </div>
+              ) : (
+                <div onClick={() => handleUpload()} onDragOver={e => e.preventDefault()} onDrop={handleUpload}
+                  style={{ width: '100%', aspectRatio: '4/3', borderRadius: 'var(--radius-sm)', border: '2px dashed rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all var(--transition-fast)' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.background = 'var(--color-primary-bg)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(0,0,0,0.1)'; e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <Upload size={24} color="var(--color-text-tertiary)" style={{ marginBottom: 8 }} />
+                  <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>拖拽或点击上传</span>
+                  <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginTop: 4 }}>支持 JPG / PNG / WEBP</span>
+                </div>
+              )}
+            </div>
+
+            {/* Tab-specific controls */}
+            <div style={{ ...glassCard, padding: 20, borderRadius: 'var(--radius-md)' }}>
+              {tab === 'bg' ? (
+                <>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text)', marginBottom: 12 }}>选择背景</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 14 }}>
+                    {BG_PRESETS.map(bg => (
+                      <button key={bg.label} onClick={() => { setSelectedBg(bg); setCustomBg(bg.prompt); }}
+                        style={{
+                          padding: '8px 0', fontSize: 12, borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, transition: 'all var(--transition-fast)',
+                          background: selectedBg?.label === bg.label ? 'var(--color-primary)' : 'rgba(0,0,0,0.04)',
+                          color: selectedBg?.label === bg.label ? '#FFF' : 'var(--color-text-secondary)',
+                          border: 'none',
+                        }}>{bg.label}</button>
+                    ))}
+                  </div>
+                  <textarea value={customBg} onChange={e => setCustomBg(e.target.value)} placeholder="自定义背景描述..." style={{ ...inputStyle, minHeight: 60, resize: 'vertical' }} />
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text)', marginBottom: 12 }}>选择风格</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 14 }}>
+                    {STYLE_PRESETS.map(s => (
+                      <button key={s.label} onClick={() => setSelectedStyle(s.label)}
+                        style={{
+                          padding: '8px 0', fontSize: 12, borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, transition: 'all var(--transition-fast)',
+                          background: selectedStyle === s.label ? s.color : 'rgba(0,0,0,0.04)',
+                          color: selectedStyle === s.label ? '#FFF' : 'var(--color-text-secondary)',
+                          border: 'none',
+                        }}>{s.label}</button>
+                    ))}
+                  </div>
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>变化程度</span>
+                      <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>{variation}%</span>
+                    </div>
+                    <input type="range" min="10" max="90" value={variation} onChange={e => setVariation(Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--color-primary)' }} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--color-text-tertiary)' }}>
+                      <span>接近原图</span><span>大幅变化</span>
+                    </div>
+                  </div>
+                  <textarea value={customStyle} onChange={e => setCustomStyle(e.target.value)} placeholder="补充风格描述（可选）..." style={{ ...inputStyle, minHeight: 50, resize: 'vertical' }} />
+                </>
+              )}
+            </div>
+
+            {/* Ratio & Count */}
+            <div style={{ ...glassCard, padding: 20, borderRadius: 'var(--radius-md)' }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text)', marginBottom: 10 }}>输出设置</div>
+              <div style={{ display: 'flex', gap: 16 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 6 }}>比例</div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {['1:1', '3:4', '16:9'].map(r => (
+                      <button key={r} onClick={() => setRatio(r)} style={{
+                        flex: 1, padding: '6px 0', fontSize: 11, borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'inherit', border: 'none', fontWeight: 500,
+                        background: ratio === r ? 'var(--color-text)' : 'rgba(0,0,0,0.04)',
+                        color: ratio === r ? '#FFF' : 'var(--color-text-secondary)',
+                      }}>{r}</button>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 6 }}>数量</div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {[1, 2, 4].map(n => (
+                      <button key={n} onClick={() => setCount(n)} style={{
+                        flex: 1, padding: '6px 0', fontSize: 11, borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'inherit', border: 'none', fontWeight: 500,
+                        background: count === n ? 'var(--color-text)' : 'rgba(0,0,0,0.04)',
+                        color: count === n ? '#FFF' : 'var(--color-text-secondary)',
+                      }}>{n}张</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button onClick={generate} disabled={!sourceImage}
+              style={{
+                width: '100%', padding: '12px', borderRadius: 'var(--radius-sm)', fontSize: 14, fontWeight: 600, fontFamily: 'inherit', border: 'none', cursor: sourceImage ? 'pointer' : 'not-allowed',
+                background: sourceImage ? 'var(--color-primary)' : 'rgba(0,0,0,0.06)', color: sourceImage ? '#FFF' : 'var(--color-text-tertiary)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all var(--transition-fast)',
+                boxShadow: sourceImage ? '0 2px 12px rgba(0,113,227,0.25)' : 'none',
+              }}
+            ><Sparkles size={15} /> 开始生成</button>
+          </div>
+
+          {/* Right panel - results */}
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)', marginBottom: 14 }}>生成结果 {results.length > 0 && <span style={{ fontWeight: 400, color: 'var(--color-text-tertiary)' }}>（{results.length}）</span>}</div>
+            {results.length === 0 ? (
+              <div style={{ ...glassCard, padding: '48px', textAlign: 'center', borderRadius: 'var(--radius-md)' }}>
+                <Image size={32} color="var(--color-text-quaternary)" style={{ marginBottom: 10 }} />
+                <div style={{ fontSize: 13, color: 'var(--color-text-tertiary)' }}>上传图片并生成后，结果将显示在这里</div>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
+                {results.map(r => (
+                  <div key={r.id} style={{ ...glassCard, borderRadius: 'var(--radius-md)', overflow: 'hidden', position: 'relative' }}>
+                    <div style={{ aspectRatio: ratio === '3:4' ? '3/4' : ratio === '16:9' ? '16/9' : '1', background: r.status === 'done' ? COVER_COLORS[r.colorIdx] : 'rgba(0,0,0,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {r.status === 'generating' && <div style={{ width: 24, height: 24, border: '2px solid var(--color-primary)', borderTop: '2px solid transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />}
+                      {r.status === 'done' && <Check size={28} color="rgba(255,255,255,0.6)" />}
+                    </div>
+                    <div style={{ padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text)' }}>{r.label}</span>
+                      {r.status === 'done' && (
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><Download size={13} color="var(--color-text-tertiary)" /></button>
+                          <button onClick={() => setResults(prev => prev.filter(x => x.id !== r.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><X size={13} color="var(--color-text-tertiary)" /></button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      {preview && <PreviewModal title="图片预览" onClose={() => setPreview(null)}><div style={{ textAlign: 'center', color: 'var(--color-text-secondary)' }}>预览区域</div></PreviewModal>}
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// AI 洗视频
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const VIDEO_STYLE_PRESETS = [
+  { label: '真人→动漫', desc: '保留动作和表情，转为日系动漫风格', color: '#E1306C' },
+  { label: '写实→油画', desc: '经典油画质感，复古艺术风格', color: '#8B5CF6' },
+  { label: '日常→电影感', desc: '增加电影级调色和宽荧幕质感', color: '#0071E3' },
+  { label: '复古胶片', desc: '胶片颗粒感，怀旧色调', color: '#FF9F0A' },
+  { label: '赛博霓虹', desc: '霓虹灯效，科幻都市氛围', color: '#00D4AA' },
+];
+
+const REPLACE_TYPES = [
+  { id: 'background', label: '背景替换', desc: '替换视频背景，保留人物和产品' },
+  { id: 'product', label: '产品替换', desc: '替换视频中的产品，保持动作不变' },
+  { id: 'text', label: '文字替换', desc: '替换视频中的字幕或文字内容' },
+];
+
+function VideoWashTool({ onBack }) {
+  const [tab, setTab] = useState('style'); // style | replace
+  const [videoFile, setVideoFile] = useState(null);
+  const [selectedVideoStyle, setSelectedVideoStyle] = useState(null);
+  const [customVideoStyle, setCustomVideoStyle] = useState('');
+  const [replaceType, setReplaceType] = useState('background');
+  const [replaceDesc, setReplaceDesc] = useState('');
+  const [replaceFrom, setReplaceFrom] = useState('');
+  const [replaceTo, setReplaceTo] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [result, setResult] = useState(null);
+
+  const handleVideoUpload = (e) => {
+    const file = e?.dataTransfer?.files?.[0] || { name: 'product_video.mp4' };
+    setVideoFile({ name: file.name || 'product_video.mp4', duration: '0:28' });
+  };
+
+  const generate = () => {
+    setGenerating(true);
+    setProgress(0);
+    setResult(null);
+    const interval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setGenerating(false);
+          setResult({ id: Date.now(), status: 'done', colorIdx: Math.floor(Math.random() * COVER_COLORS.length) });
+          return 100;
+        }
+        return prev + Math.random() * 8 + 2;
+      });
+    }, 300);
+  };
+
+  const tabs = [
+    { id: 'style', label: '风格转换' },
+    { id: 'replace', label: '元素替换' },
+  ];
+
+  return (
+    <div style={{ flex: 1, overflow: 'auto', animation: 'fadeIn 250ms ease' }}>
+      {/* Header */}
+      <div style={{ ...glassHeader, padding: '22px 40px' }}>
+        <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--color-primary)', fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', marginBottom: 14, fontFamily: 'inherit', fontWeight: 500 }}>
+          <ArrowLeft size={14} /> AI 工具箱
+        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(139,92,246,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Film size={20} color="#8B5CF6" strokeWidth={1.8} />
+          </div>
+          <div>
+            <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--color-text)', letterSpacing: '-0.4px' }}>AI 洗视频</h2>
+            <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>视频风格转换 / 元素替换，一键生成新视频</p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 0, marginTop: 18, borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => { setTab(t.id); setResult(null); setGenerating(false); setProgress(0); }} style={{
+              padding: '10px 20px', fontSize: 13, fontWeight: tab === t.id ? 600 : 400,
+              color: tab === t.id ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+              background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+              borderBottom: tab === t.id ? '2px solid var(--color-primary)' : '2px solid transparent',
+              marginBottom: -1, transition: 'color var(--transition-fast)',
+            }}>{t.label}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Body */}
+      <div style={{ padding: '28px 40px 48px', maxWidth: 1080 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 24, alignItems: 'start' }}>
+          {/* Left panel */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Video upload */}
+            <div style={{ ...glassCard, padding: 20, borderRadius: 'var(--radius-md)' }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text)', marginBottom: 12 }}>上传视频</div>
+              {videoFile ? (
+                <div>
+                  <div style={{ width: '100%', aspectRatio: '16/9', borderRadius: 'var(--radius-sm)', background: 'linear-gradient(135deg, #1d1d1f, #2c2c2e)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(0,0,0,0.06)', position: 'relative' }}>
+                    <Film size={28} color="rgba(255,255,255,0.4)" />
+                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 6 }}>{videoFile.duration}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+                    <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>{videoFile.name}</span>
+                    <button onClick={() => { setVideoFile(null); setResult(null); }} style={{ fontSize: 11, color: 'var(--color-text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>更换</button>
+                  </div>
+                </div>
+              ) : (
+                <div onClick={() => handleVideoUpload()} onDragOver={e => e.preventDefault()} onDrop={handleVideoUpload}
+                  style={{ width: '100%', aspectRatio: '16/9', borderRadius: 'var(--radius-sm)', border: '2px dashed rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all var(--transition-fast)' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.background = 'var(--color-primary-bg)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(0,0,0,0.1)'; e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <Upload size={24} color="var(--color-text-tertiary)" style={{ marginBottom: 8 }} />
+                  <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>拖拽或点击上传</span>
+                  <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginTop: 4 }}>MP4 / MOV / AVI · 60秒以内</span>
+                </div>
+              )}
+            </div>
+
+            {/* Tab-specific controls */}
+            <div style={{ ...glassCard, padding: 20, borderRadius: 'var(--radius-md)' }}>
+              {tab === 'style' ? (
+                <>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text)', marginBottom: 12 }}>选择目标风格</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+                    {VIDEO_STYLE_PRESETS.map(s => (
+                      <div key={s.label} onClick={() => setSelectedVideoStyle(s.label)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+                          borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'all var(--transition-fast)',
+                          border: `1px solid ${selectedVideoStyle === s.label ? s.color : 'rgba(0,0,0,0.06)'}`,
+                          background: selectedVideoStyle === s.label ? `${s.color}08` : 'rgba(255,255,255,0.4)',
+                        }}
+                      >
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text)' }}>{s.label}</div>
+                          <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginTop: 1 }}>{s.desc}</div>
+                        </div>
+                        {selectedVideoStyle === s.label && <Check size={14} color={s.color} />}
+                      </div>
+                    ))}
+                  </div>
+                  <textarea value={customVideoStyle} onChange={e => setCustomVideoStyle(e.target.value)} placeholder="自定义风格描述（可选）..." style={{ ...inputStyle, minHeight: 50, resize: 'vertical' }} />
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text)', marginBottom: 12 }}>替换类型</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                    {REPLACE_TYPES.map(rt => (
+                      <div key={rt.id} onClick={() => setReplaceType(rt.id)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+                          borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'all var(--transition-fast)',
+                          border: `1px solid ${replaceType === rt.id ? 'var(--color-primary)' : 'rgba(0,0,0,0.06)'}`,
+                          background: replaceType === rt.id ? 'rgba(0,113,227,0.04)' : 'rgba(255,255,255,0.4)',
+                        }}
+                      >
+                        <div style={{ width: 16, height: 16, borderRadius: '50%', border: `2px solid ${replaceType === rt.id ? 'var(--color-primary)' : 'rgba(0,0,0,0.15)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {replaceType === rt.id && <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-primary)' }} />}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text)' }}>{rt.label}</div>
+                          <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>{rt.desc}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {replaceType === 'text' ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <input value={replaceFrom} onChange={e => setReplaceFrom(e.target.value)} placeholder="原文字内容" style={inputStyle} />
+                      <input value={replaceTo} onChange={e => setReplaceTo(e.target.value)} placeholder="替换为" style={inputStyle} />
+                    </div>
+                  ) : (
+                    <textarea value={replaceDesc} onChange={e => setReplaceDesc(e.target.value)}
+                      placeholder={replaceType === 'background' ? '描述目标背景，如：海边沙滩、蓝天白云...' : '描述目标产品特征，或上传新产品图...'}
+                      style={{ ...inputStyle, minHeight: 60, resize: 'vertical' }}
+                    />
+                  )}
+                </>
+              )}
+            </div>
+
+            <button onClick={generate} disabled={!videoFile || generating}
+              style={{
+                width: '100%', padding: '12px', borderRadius: 'var(--radius-sm)', fontSize: 14, fontWeight: 600, fontFamily: 'inherit', border: 'none',
+                cursor: (!videoFile || generating) ? 'not-allowed' : 'pointer',
+                background: (!videoFile || generating) ? 'rgba(0,0,0,0.06)' : 'var(--color-primary)',
+                color: (!videoFile || generating) ? 'var(--color-text-tertiary)' : '#FFF',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all var(--transition-fast)',
+                boxShadow: (!videoFile || generating) ? 'none' : '0 2px 12px rgba(0,113,227,0.25)',
+              }}
+            ><Sparkles size={15} /> {generating ? '生成中...' : '开始生成'}</button>
+          </div>
+
+          {/* Right panel */}
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)', marginBottom: 14 }}>生成结果</div>
+            {!generating && !result ? (
+              <div style={{ ...glassCard, padding: '48px', textAlign: 'center', borderRadius: 'var(--radius-md)' }}>
+                <Film size={32} color="var(--color-text-quaternary)" style={{ marginBottom: 10 }} />
+                <div style={{ fontSize: 13, color: 'var(--color-text-tertiary)' }}>上传视频并选择处理方式后，结果将显示在这里</div>
+              </div>
+            ) : generating ? (
+              <div style={{ ...glassCard, padding: '40px 32px', borderRadius: 'var(--radius-md)' }}>
+                <div style={{ textAlign: 'center', marginBottom: 20 }}>
+                  <div style={{ width: 48, height: 48, margin: '0 auto 16px', border: '3px solid rgba(0,113,227,0.15)', borderTop: '3px solid var(--color-primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)' }}>AI 正在处理视频...</div>
+                  <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginTop: 4 }}>预计需要 30-60 秒</div>
+                </div>
+                <div style={{ background: 'rgba(0,0,0,0.04)', borderRadius: 'var(--radius-full)', height: 6, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', borderRadius: 'var(--radius-full)', background: 'var(--color-primary)', transition: 'width 0.3s ease', width: `${Math.min(progress, 100)}%` }} />
+                </div>
+                <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--color-text-tertiary)', marginTop: 8 }}>{Math.round(Math.min(progress, 100))}%</div>
+              </div>
+            ) : result ? (
+              <div style={{ ...glassCard, borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+                {/* Before / After comparison */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
+                  <div style={{ position: 'relative' }}>
+                    <div style={{ aspectRatio: '16/9', background: 'linear-gradient(135deg, #2c2c2e, #1d1d1f)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Film size={28} color="rgba(255,255,255,0.3)" />
+                    </div>
+                    <span style={{ position: 'absolute', top: 8, left: 8, fontSize: 10, padding: '2px 8px', borderRadius: 'var(--radius-full)', background: 'rgba(0,0,0,0.5)', color: '#FFF', fontWeight: 500 }}>原始</span>
+                  </div>
+                  <div style={{ position: 'relative' }}>
+                    <div style={{ aspectRatio: '16/9', background: COVER_COLORS[result.colorIdx], display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Check size={28} color="rgba(255,255,255,0.6)" />
+                    </div>
+                    <span style={{ position: 'absolute', top: 8, left: 8, fontSize: 10, padding: '2px 8px', borderRadius: 'var(--radius-full)', background: 'var(--color-primary)', color: '#FFF', fontWeight: 500 }}>生成结果</span>
+                  </div>
+                </div>
+                <div style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>处理完成</div>
+                    <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginTop: 2 }}>{tab === 'style' ? `风格：${selectedVideoStyle || '自定义'}` : `${REPLACE_TYPES.find(r => r.id === replaceType)?.label}`}</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 'var(--radius-sm)', fontSize: 12, fontWeight: 500, fontFamily: 'inherit', background: 'rgba(0,0,0,0.04)', color: 'var(--color-text)', border: 'none', cursor: 'pointer' }}><RefreshCw size={12} /> 重新生成</button>
+                    <button style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 'var(--radius-sm)', fontSize: 12, fontWeight: 500, fontFamily: 'inherit', background: 'var(--color-primary)', color: '#FFF', border: 'none', cursor: 'pointer' }}><Download size={12} /> 下载</button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>
