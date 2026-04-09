@@ -82,7 +82,7 @@ function ProductImageGen() {
   const [cat2, setCat2] = useState('');
   const [lang, setLang] = useState('英语');
   const [size, setSize] = useState('');
-  const [model, setModel] = useState('X-G-2');
+  const [model, setModel] = useState('Gemini 3 Pro Image');
   const [ratio, setRatio] = useState('1:1');
   const [resolution, setResolution] = useState('1K');
   const [count, setCount] = useState(7);
@@ -92,7 +92,7 @@ function ProductImageGen() {
   const autoExtract = () => {
     setProductName('HP Laptop with Intel Celeron Processor');
     setCat1('Electronics (电子产品)');
-    setCat2('Computers & Office (计算机与办...)');
+    setCat2('Computers & Accessories');
     setSize('14-15 inch disp');
   };
 
@@ -138,7 +138,7 @@ function ProductImageGen() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>产品名称</div><input value={productName} onChange={e => setProductName(e.target.value)} placeholder="输入产品名称" style={inputStyle} /></div>
             <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>一级类目</div><select value={cat1} onChange={e => setCat1(e.target.value)} style={selectStyle}><option value="">请选择</option><option>Electronics (电子产品)</option><option>Home & Kitchen (家居厨房)</option><option>Beauty (美妆)</option><option>Clothing (服装)</option></select></div>
-            <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>二级类目</div><select value={cat2} onChange={e => setCat2(e.target.value)} style={selectStyle}><option value="">请选择</option><option>Computers & Office (计算机与办...)</option><option>Cell Phones (手机)</option></select></div>
+            <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>二级类目</div><input value={cat2} onChange={e => setCat2(e.target.value)} placeholder="输入或由 AI 自动填充" style={inputStyle} /></div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>首图语言</div><select value={lang} onChange={e => setLang(e.target.value)} style={selectStyle}><option>英语</option><option>中文</option><option>日语</option></select></div>
               <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>产品尺寸</div><input value={size} onChange={e => setSize(e.target.value)} placeholder="如：14-15 inch" style={inputStyle} /></div>
@@ -153,7 +153,7 @@ function ProductImageGen() {
             <span style={labelStyle}>生成设置</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>模型选择</div><select value={model} onChange={e => setModel(e.target.value)} style={selectStyle}><option>X-G-2</option><option>X-2.5</option><option>FLUX-1</option></select></div>
+            <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>模型选择</div><select value={model} onChange={e => setModel(e.target.value)} style={selectStyle}><option>Gemini 3 Pro Image</option><option>Gemini 2.0 Flash</option><option>Imagen 3</option><option>Imagen 3 Fast</option></select></div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
               <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>图片比例</div><select value={ratio} onChange={e => setRatio(e.target.value)} style={selectStyle}><option>1:1</option><option>3:4</option><option>16:9</option></select></div>
               <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>分辨率</div><select value={resolution} onChange={e => setResolution(e.target.value)} style={selectStyle}><option>1K</option><option>2K</option></select></div>
@@ -256,7 +256,7 @@ function Img2Img() {
 
         {/* Settings */}
         <div style={cardStyle}>
-          <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>模型选择</div><select value={model} onChange={e => setModel(e.target.value)} style={selectStyle}><option>X-2.5</option><option>X-G-2</option><option>FLUX-1</option></select></div>
+          <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>模型选择</div><select value={model} onChange={e => setModel(e.target.value)} style={selectStyle}><option>Gemini 3 Pro Image</option><option>Gemini 2.0 Flash</option><option>Imagen 3</option><option>Imagen 3 Fast</option></select></div>
           <div style={{ marginTop: 10 }}><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>分辨率</div><select value={resolution} onChange={e => setResolution(e.target.value)} style={selectStyle}><option>1K</option><option>2K</option><option>4K</option></select></div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
             <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>图片比例</div><select value={ratio} onChange={e => setRatio(e.target.value)} style={selectStyle}><option>16:9</option><option>9:16</option><option>1:1</option><option>3:4</option></select></div>
@@ -321,7 +321,7 @@ function Img2Video() {
         {/* Model */}
         <div style={cardStyle}>
           <div style={{ fontSize: 13, fontWeight: 600, color: '#1D1D1F', marginBottom: 8 }}>模型选择</div>
-          <select value={model} onChange={e => setModel(e.target.value)} style={selectStyle}><option>V-V</option><option>V-1.5</option></select>
+          <select value={model} onChange={e => setModel(e.target.value)} style={selectStyle}><option>Veo 2</option><option>Veo 3</option><option>Imagen Video</option></select>
         </div>
 
         {/* Reference images */}
