@@ -144,6 +144,8 @@ export const projects = [
     assigneeName: '李小红',
     createdAt: '2025-03-01',
     updatedAt: '2025-03-15',
+    publishTime: '2025-03-15 19:30',
+    publishLink: 'https://www.xiaohongshu.com/explore/abc123',
   },
   {
     id: 3,
@@ -183,6 +185,8 @@ export const projects = [
     assigneeName: '李小红',
     createdAt: '2025-02-28',
     updatedAt: '2025-03-12',
+    publishTime: '2025-03-12 20:00',
+    publishLink: 'https://www.xiaohongshu.com/explore/def456',
   },
   {
     id: 6,

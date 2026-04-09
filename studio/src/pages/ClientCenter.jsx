@@ -896,7 +896,7 @@ function ProjectsTab({ client, onOpen }) {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
-              {['项目名称', '账号', '状态', '创建时间', ''].map((h, i) => (
+              {['项目名称', '账号', '状态', '发布时间', ''].map((h, i) => (
                 <th key={i} style={{ padding: '12px 18px', textAlign: 'left', fontSize: 11, color: 'var(--color-text-secondary)', fontWeight: 500, letterSpacing: '0.03em' }}>{h}</th>
               ))}
             </tr>
@@ -919,7 +919,21 @@ function ProjectsTab({ client, onOpen }) {
                   </span>
                 </td>
                 <td style={{ padding: '13px 18px' }}><StatusBadge status={p.status} /></td>
-                <td style={{ padding: '13px 18px', fontSize: 12, color: 'var(--color-text-tertiary)' }}>{p.createdAt}</td>
+                <td style={{ padding: '13px 18px', fontSize: 12, color: p.status === 'published' && p.publishTime ? 'var(--color-green)' : 'var(--color-text-tertiary)' }}>
+                  {p.status === 'published' && p.publishTime ? (
+                    <div>
+                      <div>{p.publishTime}</div>
+                      {p.publishLink && (
+                        <a href={p.publishLink} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
+                          style={{ fontSize: 11, color: 'var(--color-primary)', textDecoration: 'none' }}>
+                          查看 ↗
+                        </a>
+                      )}
+                    </div>
+                  ) : (
+                    <span style={{ color: 'var(--color-text-tertiary)' }}>{p.createdAt}</span>
+                  )}
+                </td>
                 <td style={{ padding: '13px 18px' }}>
                   <button onClick={() => onOpen(p.id)} style={{ fontSize: 12, color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }}>进入 →</button>
                 </td>

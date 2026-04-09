@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Plus, ChevronRight, ChevronDown, Sparkles, Search, Check, Play, Volume2, BookmarkCheck, X, Edit3, RefreshCw, Trash2, Image, Upload, FileText, Zap, BookOpen, AlertTriangle, Copy, Download, Eye, Mic, Video } from 'lucide-react';
+import { Plus, ChevronRight, ChevronDown, Sparkles, Search, Check, Play, Volume2, BookmarkCheck, X, Edit3, RefreshCw, Trash2, Image, Upload, FileText, Zap, BookOpen, AlertTriangle, Copy, Download, Eye, Mic, Video, Rocket } from 'lucide-react';
 import { projects, statusConfig, platformColors, clients } from '../data/mockData';
 import { promptTemplates, getCategories, filterTemplates } from '../data/promptTemplates';
 import { PlatformBadge, SectionDivider, DigitalHumanIllustration } from '../components/Illustrations';
@@ -485,10 +485,13 @@ function SchemeLayer({ sourceText, onSchemeConfirm, scheme, setScheme }) {
 // 生产层 — 4 Tab
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-function ProductionLayer({ confirmed, schemeChanged, onResetChanged, project, schemeTopic }) {
+function ProductionLayer({ confirmed, schemeChanged, onResetChanged, project, schemeTopic, projectStatus, onPublish, publishInfo }) {
   const [tab, setTab] = useState('script');
   const [topic, setTopic] = useState(schemeTopic || '烟酰胺的3个真相，护肤5年踩坑总结');
   const [editingTopic, setEditingTopic] = useState(false);
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [pubTime, setPubTime] = useState('');
+  const [pubLink, setPubLink] = useState('');
   const tabs = [
     { id: 'script', label: '口播稿', icon: <Mic size={13} /> },
     { id: 'copy', label: '发布文案', icon: <FileText size={13} /> },
@@ -560,6 +563,74 @@ function ProductionLayer({ confirmed, schemeChanged, onResetChanged, project, sc
       {tab === 'copy' && <CopyTab />}
       {tab === 'storyboard' && <StoryboardTab />}
       {tab === 'images' && <ImagesTab />}
+
+      {/* ── Publish Section ── */}
+      <div style={{ marginTop: 28, padding: '20px 0', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+        {projectStatus === 'production' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 18px', background: 'rgba(0,113,227,0.04)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(0,113,227,0.1)' }}>
+            <div style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid var(--color-primary)', borderTopColor: 'transparent', animation: 'spin 1s linear infinite' }} />
+            <span style={{ fontSize: 13, color: 'var(--color-primary)', fontWeight: 500 }}>AI 正在生成内容，请稍候...</span>
+          </div>
+        )}
+        {projectStatus === 'completed' && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
+              素材已就绪，剪辑发布后可在此标记状态
+            </div>
+            <PrimaryBtn onClick={() => setShowPublishModal(true)}>
+              <Rocket size={14} /> 标记为已发布
+            </PrimaryBtn>
+          </div>
+        )}
+        {projectStatus === 'published' && (
+          <div style={{ padding: '14px 18px', background: 'rgba(52,199,89,0.04)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(52,199,89,0.12)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: publishInfo.time || publishInfo.link ? 10 : 0 }}>
+              <Check size={14} color="var(--color-green)" />
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-green)' }}>已发布</span>
+            </div>
+            {publishInfo.time && (
+              <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4 }}>
+                发布时间：{publishInfo.time}
+              </div>
+            )}
+            {publishInfo.link && (
+              <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                发布链接：<a href={publishInfo.link} target="_blank" rel="noreferrer" style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>{publishInfo.link}</a>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Publish Modal ── */}
+      {showPublishModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, animation: 'fadeIn 150ms ease' }}
+          onClick={() => setShowPublishModal(false)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#FFFFFF', borderRadius: 'var(--radius-md)', padding: '28px 32px', width: 420, boxShadow: '0 20px 60px rgba(0,0,0,0.15)', animation: 'fadeIn 200ms ease' }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text)', margin: '0 0 4px' }}>标记为已发布</h3>
+            <p style={{ fontSize: 12, color: 'var(--color-text-tertiary)', margin: '0 0 20px' }}>以下信息为选填，方便后续数据回收</p>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 6 }}>发布时间</label>
+              <input type="datetime-local" value={pubTime} onChange={e => setPubTime(e.target.value)}
+                style={{ ...inputStyle, width: '100%' }} />
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 6 }}>发布链接（粘贴平台上的视频链接）</label>
+              <input value={pubLink} onChange={e => setPubLink(e.target.value)}
+                placeholder="https://www.douyin.com/video/..." style={{ ...inputStyle, width: '100%' }} />
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowPublishModal(false)} style={{ padding: '8px 18px', borderRadius: 'var(--radius-sm)', fontSize: 13, fontWeight: 500, fontFamily: 'inherit', background: 'rgba(0,0,0,0.04)', color: 'var(--color-text-secondary)', border: 'none', cursor: 'pointer' }}>取消</button>
+              <PrimaryBtn onClick={() => { onPublish({ time: pubTime || new Date().toLocaleString('zh-CN'), link: pubLink }); setShowPublishModal(false); }}>
+                <Check size={13} /> 确认发布
+              </PrimaryBtn>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1060,7 +1131,9 @@ function ProjectList({ onOpen, currentUser }) {
               </div>
               {isAdmin && p.assigneeName && <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginRight: 8 }}>{p.assigneeName}</span>}
               <StatusBadge status={p.status} />
-              <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginLeft: 16, minWidth: 70, textAlign: 'right' }}>{p.updatedAt}</span>
+              <span style={{ fontSize: 11, color: p.status === 'published' && p.publishTime ? 'var(--color-green)' : 'var(--color-text-tertiary)', marginLeft: 16, minWidth: 90, textAlign: 'right' }}>
+                {p.status === 'published' && p.publishTime ? p.publishTime : p.updatedAt}
+              </span>
               <ChevronRight size={14} color="var(--color-text-quaternary)" style={{ marginLeft: 12 }} />
             </div>
           ))}
@@ -1077,7 +1150,9 @@ function ProjectList({ onOpen, currentUser }) {
 function ProjectDetail({ projectId, onBack }) {
   const project = projects.find(p => p.id === projectId) || projects[0];
   const statusFlow = ['draft', 'production', 'completed', 'published'];
-  const currentIdx = statusFlow.indexOf(project.status);
+
+  const [projectStatus, setProjectStatus] = useState(project.status || 'draft');
+  const currentIdx = statusFlow.indexOf(projectStatus);
 
   const [activeLayer, setActiveLayer] = useState('source');
   const [sourceText, setSourceText] = useState('');
@@ -1085,9 +1160,16 @@ function ProjectDetail({ projectId, onBack }) {
   const [confirmed, setConfirmed] = useState(false);
   const [schemeChanged, setSchemeChanged] = useState(false);
   const [confirmedScheme, setConfirmedScheme] = useState('');
+  const [publishInfo, setPublishInfo] = useState({ time: '', link: '' });
 
   const handleSourceReady = (text) => { setSourceText(text); setActiveLayer('scheme'); };
-  const handleSchemeConfirm = (s) => { setConfirmed(true); setConfirmedScheme(s); setSchemeChanged(false); setActiveLayer('production'); };
+  const handleSchemeConfirm = (s) => {
+    setConfirmed(true); setConfirmedScheme(s); setSchemeChanged(false); setActiveLayer('production');
+    setProjectStatus('production');
+    // Simulate AI generation completing after 2s
+    setTimeout(() => setProjectStatus('completed'), 2000);
+  };
+  const handlePublish = (info) => { setPublishInfo(info); setProjectStatus('published'); };
 
   const handleSetScheme = (s) => {
     setScheme(s);
@@ -1165,7 +1247,7 @@ function ProjectDetail({ projectId, onBack }) {
           <SchemeLayer sourceText={sourceText} onSchemeConfirm={handleSchemeConfirm} scheme={scheme} setScheme={handleSetScheme} />
         )}
         {activeLayer === 'production' && (
-          <ProductionLayer confirmed={confirmed} schemeChanged={schemeChanged} onResetChanged={() => setSchemeChanged(false)} project={project} />
+          <ProductionLayer confirmed={confirmed} schemeChanged={schemeChanged} onResetChanged={() => setSchemeChanged(false)} project={project} projectStatus={projectStatus} onPublish={handlePublish} publishInfo={publishInfo} />
         )}
       </div>
     </div>

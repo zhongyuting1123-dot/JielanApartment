@@ -6,6 +6,7 @@ import CreativeStudio from './pages/CreativeStudio';
 import AIToolbox from './pages/AIToolbox';
 import AICreate from './pages/AICreate';
 import Settings from './pages/Settings';
+import SocialAgent from './pages/SocialAgent';
 import { EmptyStateIllustration } from './components/Illustrations';
 import { users } from './data/mockData';
 
@@ -31,6 +32,7 @@ export default function App() {
     clients: true,
     toolbox: true,
     'ai-create': true,
+    'agent-social': true,
   };
 
   /* Placeholder info for pages from 选品助手 (not yet implemented) */
@@ -67,6 +69,7 @@ export default function App() {
         )}
         {page === 'toolbox' && <AIToolbox />}
         {page === 'ai-create' && <AICreate />}
+        {page === 'agent-social' && <SocialAgent />}
         {page === 'settings' && <Settings currentUser={currentUser} userList={userList} onUpdateUsers={setUserList} />}
 
         {/* Placeholder for 选品助手 existing pages & new Agent pages */}
