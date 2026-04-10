@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Upload, Sparkles, Image, Video, Flame, BookOpen, X, Check, ChevronDown, RefreshCw, Download, Eye, Plus, Search, Copy, Edit3, Trash2, Star, Clock, ArrowLeftRight, Zap } from 'lucide-react';
+import { Upload, Sparkles, Image, Video, Flame, BookOpen, X, Check, ChevronDown, ChevronRight, RefreshCw, Download, Eye, Plus, Search, Copy, Edit3, Trash2, Star, Clock, ArrowLeftRight, Zap } from 'lucide-react';
 
 /* ── Styles ───────────────────────────────────────────────────── */
 const inputStyle = {
@@ -75,7 +75,7 @@ function PreviewItem({ status, label, ratio = '1/1', type = 'image' }) {
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    Tab 1: 商品图生成
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-function ProductImageGen() {
+function ProductImageGen({ globalTasks = [], addTask, cancelTask, canSubmit }) {
   const [file, setFile] = useState(null);
   const [productName, setProductName] = useState('');
   const [cat1, setCat1] = useState('');
@@ -86,8 +86,6 @@ function ProductImageGen() {
   const [ratio, setRatio] = useState('1:1');
   const [resolution, setResolution] = useState('1K');
   const [count, setCount] = useState(7);
-  const [results, setResults] = useState([]);
-  const [generating, setGenerating] = useState(false);
 
   const autoExtract = () => {
     setProductName('HP Laptop with Intel Celeron Processor');
@@ -97,20 +95,11 @@ function ProductImageGen() {
   };
 
   const generate = () => {
-    setGenerating(true);
-    const labels = ['主图·白底正面', '45°侧面', '场景图', '尺寸标注图', '卖点图', '细节特写', '包装配件图', '备用图'];
-    const items = [];
-    for (let i = 0; i < count; i++) {
-      items.push({ id: Date.now() + i, label: labels[i] || `图 ${i + 1}`, status: 'generating' });
-    }
-    setResults(items);
-    items.forEach((item, idx) => {
-      setTimeout(() => {
-        setResults(prev => prev.map(r => r.id === item.id ? { ...r, status: 'done' } : r));
-        if (idx === items.length - 1) setGenerating(false);
-      }, 1500 + Math.random() * 2000 + idx * 500);
-    });
+    if (!addTask) return;
+    addTask('product-img', productName || '未命名产品', count);
   };
+
+  const disabled = !file || !canSubmit;
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 24, alignItems: 'start' }}>
@@ -162,35 +151,47 @@ function ProductImageGen() {
           </div>
         </div>
 
-        <button onClick={generate} disabled={!file || generating} style={{ ...btnPrimary, opacity: (!file || generating) ? 0.5 : 1, cursor: (!file || generating) ? 'not-allowed' : 'pointer' }}>
-          <Sparkles size={16} /> 立即生成
+        <button onClick={generate} disabled={disabled} style={{ ...btnPrimary, opacity: disabled ? 0.5 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}>
+          <Sparkles size={16} /> {!canSubmit ? '队列已满，请等待' : '立即生成'}
         </button>
       </div>
 
-      {/* Preview wall */}
+      {/* Preview wall - shows all tasks for this tool */}
       <div style={previewWall}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <span style={{ fontSize: 15, fontWeight: 700, color: '#1D1D1F' }}>预览墙 <span style={{ fontWeight: 400, color: '#AEAEB2', fontSize: 13 }}>({results.filter(r => r.status === 'done').length}/{results.length})</span></span>
-          {results.length > 0 && <button onClick={() => setResults([])} style={{ fontSize: 12, color: '#AEAEB2', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}><Trash2 size={12} /> 清空预览墙</button>}
+          <span style={{ fontSize: 15, fontWeight: 700, color: '#1D1D1F' }}>预览墙</span>
         </div>
-        {results.length > 0 && generating && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, padding: '8px 14px', background: '#FFF', borderRadius: 8, border: '1px solid #E8E8ED' }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF3B30' }} />
-            <span style={{ fontSize: 12, color: '#6E6E73' }}>SS{Date.now().toString().slice(-6)}</span>
-            <span style={{ fontSize: 12, color: '#AEAEB2' }}>{model}</span>
-            <span style={{ fontSize: 12, color: '#AEAEB2' }}>{new Date().toLocaleString()}</span>
-            <div style={{ width: 12, height: 12, border: '2px solid #E8E8ED', borderTop: '2px solid #0071E3', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-          </div>
-        )}
-        {results.length === 0 ? (
+        {globalTasks.length === 0 ? (
           <div style={emptyState}>
             <Image size={40} color="#D1D1D6" style={{ marginBottom: 12 }} />
             <div style={{ fontSize: 14, fontWeight: 500, color: '#AEAEB2' }}>暂无生成任务</div>
             <div style={{ fontSize: 12, color: '#C7C7CC', marginTop: 4 }}>上传产品图并生成后，结果将显示在这里</div>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-            {results.map(r => <PreviewItem key={r.id} status={r.status} label={r.label} />)}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {globalTasks.map(task => (
+              <div key={task.id} style={{ background: '#FFF', borderRadius: 12, border: '1px solid #E8E8ED', overflow: 'hidden' }}>
+                {/* Task header */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid #F0F0F0' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: task.status === 'running' ? '#0071E3' : task.status === 'completed' ? '#34C759' : '#FF3B30', animation: task.status === 'running' ? 'pulse 1.5s infinite' : 'none' }} />
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#1D1D1F' }}>{task.name}</span>
+                    <span style={{ fontSize: 11, color: '#AEAEB2' }}>{task.progress.done}/{task.progress.total}</span>
+                    {task.status === 'running' && <div style={{ width: 12, height: 12, border: '2px solid #E8E8ED', borderTop: '2px solid #0071E3', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 10, color: '#C7C7CC' }}>{new Date(task.createdAt).toLocaleTimeString()}</span>
+                    {task.status === 'running' && cancelTask && (
+                      <button onClick={() => cancelTask(task.id)} style={{ fontSize: 11, color: '#FF3B30', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>取消</button>
+                    )}
+                  </div>
+                </div>
+                {/* Task results grid */}
+                <div style={{ padding: 12, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+                  {task.results.map(r => <PreviewItem key={r.id} status={r.status} label={r.label} />)}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -704,53 +705,260 @@ function PromptLibrary() {
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    Main: AI 创作
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-const TABS = [
-  { id: 'product-img', label: '商品图生成', icon: Image },
-  { id: 'img2img', label: '图生图', icon: Image },
-  { id: 'img2video', label: '图生视频', icon: Video },
-  { id: 'viral-clone', label: '爆款视频复刻', icon: Flame },
-  { id: 'prompt-lib', label: '提示词库', icon: BookOpen },
+const TOOLS = [
+  { id: 'product-img', label: '商品图生成', desc: '上传产品图，AI 一键生成亚马逊规范商品图', icon: Image, color: '#0071E3', bgColor: 'rgba(0,113,227,0.08)' },
+  { id: 'img2img', label: '图生图', desc: '上传参考图 + 提示词，AI 生成目标场景图片', icon: Image, color: '#34C759', bgColor: 'rgba(52,199,89,0.08)' },
+  { id: 'img2video', label: '图生视频', desc: '参考图 + 分镜设置，AI 生成短视频', icon: Video, color: '#AF52DE', bgColor: 'rgba(175,82,222,0.08)' },
+  { id: 'viral-clone', label: '爆款视频复刻', desc: '上传爆款视频，AI 分析结构生成同款', icon: Flame, color: '#FF9500', bgColor: 'rgba(255,149,0,0.08)' },
+  { id: 'prompt-lib', label: '提示词库', desc: '统一管理和复用所有 AI 提示词', icon: BookOpen, color: '#FF2D55', bgColor: 'rgba(255,45,85,0.08)' },
 ];
 
-export default function AICreate() {
-  const [tab, setTab] = useState('product-img');
+const MAX_TASKS = 5;
+const MAX_HISTORY = 20;
+
+function TaskBanner({ tasks, onViewTask }) {
+  const activeTasks = tasks.filter(t => t.status === 'running' || t.status === 'completed');
+  if (activeTasks.length === 0) return null;
+  const running = tasks.filter(t => t.status === 'running').length;
 
   return (
-    <div style={{ flex: 1, overflow: 'auto', animation: 'fadeIn 250ms ease' }}>
-      {/* Header */}
-      <div style={{ background: '#FFF', borderBottom: '1px solid #F0F0F0', padding: '28px 36px 0' }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1D1D1F', letterSpacing: '-0.4px', marginBottom: 4 }}>AI 创作</h1>
-        <p style={{ fontSize: 13, color: '#AEAEB2', marginBottom: 18 }}>AI 驱动的图片与视频创作工具</p>
+    <div style={{ background: '#FFF', borderRadius: 14, border: '1px solid rgba(0,0,0,0.04)', padding: '14px 18px', marginBottom: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: activeTasks.length > 0 ? 10 : 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: running > 0 ? '#0071E3' : '#34C759', animation: running > 0 ? 'pulse 1.5s infinite' : 'none' }} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#1D1D1F' }}>任务队列</span>
+          <span style={{ fontSize: 11, color: '#AEAEB2' }}>{running > 0 ? `${running} 个运行中` : '全部完成'} · {tasks.filter(t => t.status === 'running').length}/{MAX_TASKS}</span>
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {activeTasks.slice(0, 5).map(task => {
+          const tool = TOOLS.find(t => t.id === task.tool);
+          return (
+            <div key={task.id} onClick={() => onViewTask(task)} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '8px 12px', borderRadius: 8, background: 'rgba(0,0,0,0.02)',
+              cursor: 'pointer', transition: 'background 150ms',
+            }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.04)'}
+               onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0.02)'}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: task.status === 'running' ? '#0071E3' : task.status === 'completed' ? '#34C759' : '#FF3B30' }} />
+                <span style={{ fontSize: 12, fontWeight: 500, color: '#1D1D1F' }}>{tool?.label}</span>
+                <span style={{ fontSize: 11, color: '#AEAEB2' }}>{task.name || ''}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {task.status === 'running' && (
+                  <span style={{ fontSize: 11, color: '#0071E3', fontWeight: 500 }}>{task.progress?.done || 0}/{task.progress?.total || 0}</span>
+                )}
+                {task.status === 'completed' && (
+                  <span style={{ fontSize: 11, color: '#34C759', fontWeight: 500 }}>已完成</span>
+                )}
+                {task.status === 'failed' && (
+                  <span style={{ fontSize: 11, color: '#FF3B30', fontWeight: 500 }}>失败</span>
+                )}
+                <span style={{ fontSize: 11, color: '#0071E3' }}>查看</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
-        {/* Tab bar */}
-        <div style={{ display: 'flex', gap: 0 }}>
-          {TABS.map(t => {
-            const Icon = t.icon;
-            const active = tab === t.id;
+function Toast({ message, type, onClose }) {
+  if (!message) return null;
+  const colors = { success: '#34C759', error: '#FF3B30', info: '#0071E3' };
+  return (
+    <div style={{
+      position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
+      display: 'flex', alignItems: 'center', gap: 8,
+      padding: '12px 18px', borderRadius: 12,
+      background: '#FFF', border: `1px solid ${colors[type] || colors.info}20`,
+      boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+      animation: 'fadeIn 200ms ease', cursor: 'pointer',
+    }} onClick={onClose}>
+      <div style={{ width: 8, height: 8, borderRadius: '50%', background: colors[type] || colors.info }} />
+      <span style={{ fontSize: 13, color: '#1D1D1F', fontWeight: 500 }}>{message}</span>
+      <X size={14} color="#AEAEB2" style={{ marginLeft: 8 }} />
+    </div>
+  );
+}
+
+function ToolGrid({ onSelect, tasks }) {
+  const [hovered, setHovered] = useState(null);
+  return (
+    <div style={{ flex: 1, overflow: 'auto', animation: 'fadeIn 250ms ease' }}>
+      <div style={{ padding: '40px 48px' }}>
+        <h1 style={{ fontSize: 26, fontWeight: 700, color: '#1D1D1F', letterSpacing: '-0.5px', marginBottom: 6 }}>AI 创作</h1>
+        <p style={{ fontSize: 14, color: '#AEAEB2', marginBottom: 24 }}>AI 驱动的图片与视频创作工具</p>
+
+        <TaskBanner tasks={tasks} onViewTask={(task) => onSelect(task.tool)} />
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+          {TOOLS.map(tool => {
+            const Icon = tool.icon;
+            const isHovered = hovered === tool.id;
+            const toolTasks = tasks.filter(t => t.tool === tool.id && t.status === 'running');
             return (
-              <button key={t.id} onClick={() => setTab(t.id)} style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '10px 18px', fontSize: 13, fontWeight: active ? 600 : 400,
-                color: active ? '#0071E3' : '#6E6E73',
-                background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-                borderBottom: active ? '2px solid #0071E3' : '2px solid transparent',
-                marginBottom: -1, transition: 'color 150ms',
-              }}>
-                <Icon size={14} /> {t.label}
+              <button key={tool.id} onClick={() => onSelect(tool.id)}
+                onMouseEnter={() => setHovered(tool.id)} onMouseLeave={() => setHovered(null)}
+                style={{
+                  position: 'relative',
+                  display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+                  padding: '24px 22px', borderRadius: 16,
+                  background: isHovered ? '#FFF' : 'rgba(255,255,255,0.7)',
+                  border: '1px solid', borderColor: isHovered ? 'rgba(0,0,0,0.06)' : 'rgba(0,0,0,0.04)',
+                  boxShadow: isHovered ? '0 8px 30px rgba(0,0,0,0.08)' : '0 2px 8px rgba(0,0,0,0.03)',
+                  cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                  transition: 'all 250ms cubic-bezier(0.25,0.46,0.45,0.94)',
+                  transform: isHovered ? 'translateY(-4px)' : 'none',
+                }}>
+                {toolTasks.length > 0 && (
+                  <div style={{
+                    position: 'absolute', top: 12, right: 12,
+                    display: 'flex', alignItems: 'center', gap: 4,
+                    padding: '2px 8px', borderRadius: 10,
+                    background: 'rgba(0,113,227,0.08)', fontSize: 11, fontWeight: 600, color: '#0071E3',
+                  }}>
+                    <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#0071E3', animation: 'pulse 1.5s infinite' }} />
+                    {toolTasks.length} 个任务
+                  </div>
+                )}
+                <div style={{
+                  width: 48, height: 48, borderRadius: 14, background: tool.bgColor,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+                }}>
+                  <Icon size={24} color={tool.color} strokeWidth={1.8} />
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: '#1D1D1F', marginBottom: 6 }}>{tool.label}</div>
+                <div style={{ fontSize: 12, color: '#8E8E93', lineHeight: 1.5 }}>{tool.desc}</div>
+                <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 500, color: tool.color }}>
+                  开始创作 <ChevronRight size={14} />
+                </div>
               </button>
             );
           })}
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* Body */}
-      <div style={{ padding: '24px 36px 48px' }}>
-        {tab === 'product-img' && <ProductImageGen />}
-        {tab === 'img2img' && <Img2Img />}
-        {tab === 'img2video' && <Img2Video />}
-        {tab === 'viral-clone' && <ViralVideoClone />}
-        {tab === 'prompt-lib' && <PromptLibrary />}
+export default function AICreate() {
+  const [activeTool, setActiveTool] = useState(null);
+  const [tasks, setTasks] = useState([]);
+  const [toast, setToast] = useState(null);
+
+  const runningCount = tasks.filter(t => t.status === 'running').length;
+  const canSubmit = runningCount < MAX_TASKS;
+
+  // Add a new task to the global queue
+  const addTask = (toolId, name, totalItems) => {
+    if (!canSubmit) {
+      setToast({ message: `当前有 ${MAX_TASKS} 个任务运行中，请等待完成后再提交`, type: 'error' });
+      setTimeout(() => setToast(null), 3000);
+      return null;
+    }
+    const taskId = `task_${Date.now()}`;
+    const items = [];
+    const labels = ['主图·白底正面', '45°侧面', '场景图', '尺寸标注图', '卖点图', '细节特写', '包装配件图', '备用图'];
+    for (let i = 0; i < totalItems; i++) {
+      items.push({ id: i, label: labels[i] || `图 ${i + 1}`, status: 'generating' });
+    }
+    const newTask = {
+      id: taskId, tool: toolId, name,
+      status: 'running', createdAt: new Date().toISOString(),
+      results: items, progress: { done: 0, total: totalItems },
+    };
+    setTasks(prev => {
+      const updated = [newTask, ...prev];
+      // Keep max history
+      if (updated.length > MAX_HISTORY) return updated.slice(0, MAX_HISTORY);
+      return updated;
+    });
+    setToast({ message: '任务已提交，可继续使用其他工具', type: 'info' });
+    setTimeout(() => setToast(null), 3000);
+
+    // Simulate generation
+    items.forEach((item, idx) => {
+      setTimeout(() => {
+        setTasks(prev => prev.map(t => {
+          if (t.id !== taskId) return t;
+          const newResults = t.results.map(r => r.id === item.id ? { ...r, status: 'done' } : r);
+          const done = newResults.filter(r => r.status === 'done').length;
+          const allDone = done === t.progress.total;
+          if (allDone) {
+            setTimeout(() => {
+              setToast({ message: `${TOOLS.find(tl => tl.id === toolId)?.label} · ${name} 已完成`, type: 'success' });
+              setTimeout(() => setToast(null), 4000);
+            }, 100);
+          }
+          return { ...t, results: newResults, progress: { ...t.progress, done }, status: allDone ? 'completed' : 'running' };
+        }));
+      }, 1500 + Math.random() * 2000 + idx * 800);
+    });
+    return taskId;
+  };
+
+  // Cancel a running task
+  const cancelTask = (taskId) => {
+    setTasks(prev => prev.map(t => t.id === taskId && t.status === 'running' ? { ...t, status: 'failed' } : t));
+  };
+
+  if (!activeTool) return (
+    <>
+      <ToolGrid onSelect={setActiveTool} tasks={tasks} />
+      <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
+    </>
+  );
+
+  const currentTool = TOOLS.find(t => t.id === activeTool);
+  const Icon = currentTool?.icon || Image;
+  const currentToolTasks = tasks.filter(t => t.tool === activeTool);
+
+  return (
+    <div style={{ flex: 1, overflow: 'auto', animation: 'fadeIn 200ms ease' }}>
+      {/* Top bar */}
+      <div style={{ background: '#FFF', borderBottom: '1px solid #F0F0F0', padding: '16px 36px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button onClick={() => setActiveTool(null)} style={{
+            display: 'flex', alignItems: 'center', gap: 4, color: '#0071E3', fontSize: 13, fontWeight: 500,
+            background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+          }}>
+            <ChevronRight size={14} style={{ transform: 'rotate(180deg)' }} /> 全部工具
+          </button>
+          <div style={{ width: 1, height: 16, background: '#E8E8ED' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 24, height: 24, borderRadius: 7, background: currentTool?.bgColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon size={14} color={currentTool?.color} strokeWidth={2} />
+            </div>
+            <span style={{ fontSize: 14, fontWeight: 600, color: '#1D1D1F' }}>{currentTool?.label}</span>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {runningCount > 0 && (
+            <span style={{ fontSize: 11, color: '#AEAEB2' }}>
+              全局任务 {runningCount}/{MAX_TASKS}
+            </span>
+          )}
+          {!canSubmit && (
+            <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 10, background: 'rgba(255,59,48,0.08)', color: '#FF3B30', fontWeight: 500 }}>
+              队列已满
+            </span>
+          )}
+        </div>
       </div>
+
+      {/* Tool content */}
+      <div style={{ padding: '24px 36px 48px' }}>
+        {activeTool === 'product-img' && <ProductImageGen globalTasks={currentToolTasks} addTask={addTask} cancelTask={cancelTask} canSubmit={canSubmit} />}
+        {activeTool === 'img2img' && <Img2Img globalTasks={currentToolTasks} addTask={addTask} cancelTask={cancelTask} canSubmit={canSubmit} />}
+        {activeTool === 'img2video' && <Img2Video globalTasks={currentToolTasks} addTask={addTask} cancelTask={cancelTask} canSubmit={canSubmit} />}
+        {activeTool === 'viral-clone' && <ViralVideoClone />}
+        {activeTool === 'prompt-lib' && <PromptLibrary />}
+      </div>
+
+      <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
     </div>
   );
 }
