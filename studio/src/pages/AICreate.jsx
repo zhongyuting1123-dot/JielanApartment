@@ -54,20 +54,87 @@ function UploadBox({ label, accept, hint, file, onUpload, onClear, aspectRatio =
 }
 
 /* ── Shared: Preview grid item ────────────────────────────────── */
-function PreviewItem({ status, label, ratio = '1/1', type = 'image' }) {
+function PreviewItem({ status, label, ratio = '1/1', type = 'image', prompt: itemPrompt, onPreview, onRegenerate, onDownload }) {
+  const [hovered, setHovered] = useState(false);
   const isVideo = type === 'video';
+  const isDone = status === 'done';
   return (
     <div style={{ background: '#FFF', border: '1px solid #E8E8ED', borderRadius: 10, overflow: 'hidden' }}>
-      <div style={{ aspectRatio: ratio, background: status === 'done' ? 'linear-gradient(135deg, #667eea, #764ba2)' : '#F5F5F7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div
+        style={{ aspectRatio: ratio, background: isDone ? 'linear-gradient(135deg, #667eea, #764ba2)' : '#F5F5F7', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', cursor: isDone ? 'pointer' : 'default' }}
+        onMouseEnter={() => isDone && setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
         {status === 'generating' && (
           <div style={{ textAlign: 'center' }}>
             <div style={{ width: 36, height: 36, border: '3px solid #E8E8ED', borderTop: '3px solid #0071E3', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 8px' }} />
             <span style={{ fontSize: 11, color: '#AEAEB2' }}>正在生成...</span>
           </div>
         )}
-        {status === 'done' && (isVideo ? <Video size={28} color="rgba(255,255,255,0.6)" /> : <Check size={28} color="rgba(255,255,255,0.6)" />)}
+        {isDone && !hovered && (isVideo ? <Video size={28} color="rgba(255,255,255,0.6)" /> : <Check size={28} color="rgba(255,255,255,0.6)" />)}
+        {/* Hover overlay with 3 action buttons */}
+        {isDone && hovered && (
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, animation: 'fadeIn 150ms ease' }}>
+            <button onClick={e => { e.stopPropagation(); onPreview?.(); }} title="预览" style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.2)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', transition: 'background 150ms' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.35)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}>
+              <Eye size={15} color="#FFF" />
+            </button>
+            <button onClick={e => { e.stopPropagation(); onRegenerate?.(); }} title="重新生成" style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.2)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', transition: 'background 150ms' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.35)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}>
+              <RefreshCw size={15} color="#FFF" />
+            </button>
+            <button onClick={e => { e.stopPropagation(); onDownload?.(); }} title="下载" style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.2)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', transition: 'background 150ms' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.35)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}>
+              <Download size={15} color="#FFF" />
+            </button>
+          </div>
+        )}
       </div>
       {label && <div style={{ padding: '8px 10px', fontSize: 11, color: '#6E6E73' }}>{label}</div>}
+    </div>
+  );
+}
+
+/* ── Prompt Edit Modal ────────────────────────────────────────── */
+function PromptEditModal({ title, initialPrompt = '', onConfirm, onClose }) {
+  const [prompt, setPrompt] = useState(initialPrompt);
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(6px)' }} />
+      <div onClick={e => e.stopPropagation()} style={{ position: 'relative', width: 520, background: '#FFF', borderRadius: 16, padding: '24px 28px', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', animation: 'fadeIn 200ms ease' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <span style={{ fontSize: 15, fontWeight: 700, color: '#1D1D1F' }}>{title}</span>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><X size={18} color="#AEAEB2" /></button>
+        </div>
+        <textarea value={prompt} onChange={e => setPrompt(e.target.value)} placeholder="输入生图 Prompt..." style={{ width: '100%', minHeight: 140, padding: '12px 14px', borderRadius: 10, border: '1px solid #E8E8ED', fontSize: 13, color: '#1D1D1F', outline: 'none', fontFamily: 'inherit', lineHeight: 1.7, resize: 'vertical', boxSizing: 'border-box', background: '#FAFAFA' }} />
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 14 }}>
+          <button onClick={onClose} style={{ padding: '8px 18px', borderRadius: 8, fontSize: 13, fontWeight: 500, fontFamily: 'inherit', background: 'none', border: '1px solid #E8E8ED', color: '#6E6E73', cursor: 'pointer' }}>取消</button>
+          <button onClick={() => { onConfirm(prompt); onClose(); }} disabled={!prompt.trim()} style={{ padding: '8px 18px', borderRadius: 8, fontSize: 13, fontWeight: 500, fontFamily: 'inherit', background: !prompt.trim() ? '#E8E8ED' : '#0071E3', color: !prompt.trim() ? '#AEAEB2' : '#FFF', border: 'none', cursor: !prompt.trim() ? 'not-allowed' : 'pointer' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Sparkles size={13} /> 生成</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Image Preview Modal ──────────────────────────────────────── */
+function ImagePreviewModal({ label, onClose }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }} />
+      <div onClick={e => e.stopPropagation()} style={{ position: 'relative', width: 640, maxHeight: '85vh', background: '#FFF', borderRadius: 16, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', animation: 'fadeIn 200ms ease' }}>
+        <div style={{ aspectRatio: '1', background: 'linear-gradient(135deg, #667eea, #764ba2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Image size={64} color="rgba(255,255,255,0.4)" />
+        </div>
+        <div style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#1D1D1F' }}>{label || '图片预览'}</span>
+          <button onClick={onClose} style={{ fontSize: 12, color: '#0071E3', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>关闭</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -80,19 +147,40 @@ function ProductImageGen({ globalTasks = [], addTask, cancelTask, canSubmit }) {
   const [productName, setProductName] = useState('');
   const [cat1, setCat1] = useState('');
   const [cat2, setCat2] = useState('');
-  const [lang, setLang] = useState('英语');
-  const [size, setSize] = useState('');
   const [model, setModel] = useState('NanoBanana2');
   const [ratio, setRatio] = useState('1:1');
   const [customRatio, setCustomRatio] = useState('');
   const [resolution, setResolution] = useState('1024×1024');
-  const [count, setCount] = useState(7);
+  const [previewImg, setPreviewImg] = useState(null);
+  const [promptModal, setPromptModal] = useState(null);
+  const [regenTarget, setRegenTarget] = useState(null);
+
+  const IMAGE_TYPES = [
+    { id: 'main', label: '主图·白底正面', default: true },
+    { id: 'side45', label: '45°侧面', default: true },
+    { id: 'side30', label: '30°侧面', default: false },
+    { id: 'side90', label: '90°侧面', default: false },
+    { id: 'topdown', label: '俯视图', default: false },
+    { id: 'scene', label: '场景图', default: true },
+    { id: 'size', label: '尺寸标注图', default: false },
+    { id: 'selling', label: '卖点图', default: true },
+    { id: 'detail', label: '细节特写', default: true },
+    { id: 'packaging', label: '包装配件图', default: false },
+  ];
+  const [selectedTypes, setSelectedTypes] = useState(IMAGE_TYPES.filter(t => t.default).map(t => t.id));
+  const [customPrompts, setCustomPrompts] = useState([]); // { id, prompt }
+  const [newCustom, setNewCustom] = useState('');
+
+  const count = selectedTypes.length + customPrompts.length;
+
+  const toggleType = (id) => setSelectedTypes(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const addCustomPrompt = () => { if (newCustom.trim()) { setCustomPrompts(prev => [...prev, { id: Date.now(), prompt: newCustom.trim() }]); setNewCustom(''); } };
+  const removeCustomPrompt = (id) => setCustomPrompts(prev => prev.filter(c => c.id !== id));
 
   const autoExtract = () => {
     setProductName('HP Laptop with Intel Celeron Processor');
     setCat1('Electronics (电子产品)');
     setCat2('Computers & Accessories');
-    setSize('14-15 inch disp');
   };
 
   const generate = () => {
@@ -129,10 +217,6 @@ function ProductImageGen({ globalTasks = [], addTask, cancelTask, canSubmit }) {
             <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>产品名称</div><input value={productName} onChange={e => setProductName(e.target.value)} placeholder="输入产品名称" style={inputStyle} /></div>
             <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>一级类目</div><select value={cat1} onChange={e => setCat1(e.target.value)} style={selectStyle}><option value="">请选择</option><option>Electronics (电子产品)</option><option>Home & Kitchen (家居厨房)</option><option>Beauty (美妆)</option><option>Clothing (服装)</option></select></div>
             <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>二级类目</div><input value={cat2} onChange={e => setCat2(e.target.value)} placeholder="输入或由 AI 自动填充" style={inputStyle} /></div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>首图语言</div><select value={lang} onChange={e => setLang(e.target.value)} style={selectStyle}><option>英语</option><option>中文</option><option>日语</option></select></div>
-              <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>产品尺寸</div><input value={size} onChange={e => setSize(e.target.value)} placeholder="如：14-15 inch" style={inputStyle} /></div>
-            </div>
           </div>
         </div>
 
@@ -161,9 +245,41 @@ function ProductImageGen({ globalTasks = [], addTask, cancelTask, canSubmit }) {
                 <input value={customRatio} onChange={e => setCustomRatio(e.target.value)} placeholder="如：5:3" style={{ ...inputStyle, marginTop: 6, width: 100, padding: '5px 10px', fontSize: 11 }} />
               )}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>分辨率</div><select value={resolution} onChange={e => setResolution(e.target.value)} style={selectStyle}><option>1024×1024 (1K)</option><option>1536×1536 (1.5K)</option><option>2048×2048 (2K)</option><option>4096×4096 (4K)</option></select></div>
-              <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>生成张数</div><select value={count} onChange={e => setCount(Number(e.target.value))} style={selectStyle}>{[1,2,3,4,5,6,7,8].map(n => <option key={n} value={n}>{n}</option>)}</select></div>
+            <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>分辨率</div><select value={resolution} onChange={e => setResolution(e.target.value)} style={selectStyle}><option>1024×1024 (1K)</option><option>1536×1536 (1.5K)</option><option>2048×2048 (2K)</option><option>4096×4096 (4K)</option></select></div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <div style={{ fontSize: 11, color: '#6E6E73' }}>图片类型（多选）</div>
+                <span style={{ fontSize: 11, color: '#0071E3', fontWeight: 500 }}>共 {count} 张</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {IMAGE_TYPES.map(t => {
+                  const checked = selectedTypes.includes(t.id);
+                  return (
+                    <label key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '5px 8px', borderRadius: 6, background: checked ? 'rgba(0,113,227,0.04)' : 'transparent', transition: 'background 150ms' }}>
+                      <input type="checkbox" checked={checked} onChange={() => toggleType(t.id)} style={{ width: 14, height: 14, accentColor: '#0071E3', cursor: 'pointer' }} />
+                      <span style={{ fontSize: 12, color: checked ? '#0071E3' : '#1D1D1F', fontWeight: checked ? 500 : 400 }}>{t.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 6 }}>自定义类型（选填）</div>
+              {customPrompts.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 6 }}>
+                  {customPrompts.map(c => (
+                    <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: 'rgba(52,199,89,0.06)', border: '1px solid rgba(52,199,89,0.15)', borderRadius: 6 }}>
+                      <span style={{ fontSize: 11, color: '#34C759', fontWeight: 500 }}>✓</span>
+                      <span style={{ flex: 1, fontSize: 12, color: '#1D1D1F', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.prompt}</span>
+                      <button onClick={() => removeCustomPrompt(c.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#AEAEB2' }}><X size={12} /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input value={newCustom} onChange={e => setNewCustom(e.target.value)} onKeyDown={e => e.key === 'Enter' && addCustomPrompt()} placeholder="输入自定义提示词..." style={{ ...inputStyle, flex: 1, padding: '7px 10px', fontSize: 12 }} />
+                <button onClick={addCustomPrompt} disabled={!newCustom.trim()} style={{ padding: '0 14px', borderRadius: 8, fontSize: 12, fontWeight: 500, fontFamily: 'inherit', background: newCustom.trim() ? '#0071E3' : '#E8E8ED', color: newCustom.trim() ? '#FFF' : '#AEAEB2', border: 'none', cursor: newCustom.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 4 }}><Plus size={13} /> 添加</button>
+              </div>
             </div>
           </div>
         </div>
@@ -203,15 +319,44 @@ function ProductImageGen({ globalTasks = [], addTask, cancelTask, canSubmit }) {
                     )}
                   </div>
                 </div>
-                {/* Task results grid */}
+                {/* Task results grid + add button */}
                 <div style={{ padding: 12, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
-                  {task.results.map(r => <PreviewItem key={r.id} status={r.status} label={r.label} />)}
+                  {task.results.map(r => (
+                    <PreviewItem
+                      key={r.id} status={r.status} label={r.label} prompt={r.prompt}
+                      onPreview={() => setPreviewImg(r.label)}
+                      onRegenerate={() => { setRegenTarget(r); setPromptModal({ title: `重新生成 · ${r.label}`, initialPrompt: r.prompt || '' }); }}
+                      onDownload={() => alert(`下载: ${r.label}`)}
+                    />
+                  ))}
+                  {/* Add custom image button */}
+                  {task.status === 'completed' && (
+                    <div
+                      onClick={() => setPromptModal({ title: '自定义生成', initialPrompt: '' })}
+                      style={{ background: '#FFF', border: '2px dashed #E8E8ED', borderRadius: 10, aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 150ms' }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = '#0071E3'; e.currentTarget.style.background = 'rgba(0,113,227,0.02)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8E8ED'; e.currentTarget.style.background = '#FFF'; }}
+                    >
+                      <Plus size={24} color="#AEAEB2" />
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Modals */}
+      {previewImg && <ImagePreviewModal label={previewImg} onClose={() => setPreviewImg(null)} />}
+      {promptModal && (
+        <PromptEditModal
+          title={promptModal.title}
+          initialPrompt={promptModal.initialPrompt}
+          onConfirm={(p) => { /* mock: add to results or regenerate */ }}
+          onClose={() => { setPromptModal(null); setRegenTarget(null); }}
+        />
+      )}
     </div>
   );
 }
@@ -219,40 +364,117 @@ function ProductImageGen({ globalTasks = [], addTask, cancelTask, canSubmit }) {
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    Tab 2: 图生图
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-function Img2Img() {
-  const [file, setFile] = useState(null);
+
+const PROMPT_TEMPLATES = [
+  { id: 1, title: 'Costco 超市场景', content: '将商品放置于大型仓储会员超市（如Costco）真实购物场景中，货架背景，暖色灯光，营造促销折扣氛围，9:16竖版，素人手机随手拍风感' },
+  { id: 2, title: '纯白电商主图', content: '纯白色背景(#FFFFFF)，产品居中，占画面85%，无阴影无文字，专业商业摄影，柔和均匀布光，8K超清' },
+  { id: 3, title: 'TikTok 爆款风格', content: '9:16竖版，产品居中，粗体白色英文字幕「MASSIVE SHOCK discount」+ 黑色厚描边，真实原相机手持拍摄质感' },
+  { id: 4, title: '日系生活场景', content: '温暖日系色调，产品放在木质桌面，旁边有绿植和咖啡杯，自然窗光，氛围感文艺杂志风' },
+  { id: 5, title: '赛博朋克霓虹', content: '赛博朋克风格，霓虹灯光反射，雾气弥漫，紫色蓝色光晕，未来感科技质感' },
+];
+
+function Img2Img({ globalTasks = [], addTask, cancelTask, canSubmit }) {
+  const [mainFile, setMainFile] = useState(null);
+  const [styleFile, setStyleFile] = useState(null);
+  const [sceneFile, setSceneFile] = useState(null);
+  const [batchMode, setBatchMode] = useState(false);
+  const [batchFiles, setBatchFiles] = useState([]); // 批量模式的多张图
   const [prompt, setPrompt] = useState('');
   const [autoTranslate, setAutoTranslate] = useState(false);
-  const [model, setModel] = useState('X-2.5');
-  const [resolution, setResolution] = useState('1K');
+  const [model, setModel] = useState('NanoBanana Pro');
+  const [resolution, setResolution] = useState('1024×1024 (1K)');
   const [ratio, setRatio] = useState('16:9');
   const [genCount, setGenCount] = useState(1);
-  const [results, setResults] = useState([]);
+  const [previewImg, setPreviewImg] = useState(null);
+  const [promptModal, setPromptModal] = useState(null);
+  const [templateLibOpen, setTemplateLibOpen] = useState(false);
+  const [aiEnhanceLoading, setAiEnhanceLoading] = useState(false);
 
   const generate = () => {
-    for (let i = 0; i < genCount; i++) {
-      const id = Date.now() + i;
-      setTimeout(() => {
-        setResults(prev => [...prev, { id, label: `生成 #${prev.length + 1}`, status: 'generating' }]);
-        setTimeout(() => setResults(prev => prev.map(r => r.id === id ? { ...r, status: 'done' } : r)), 2000 + Math.random() * 2000);
-      }, i * 400);
-    }
+    if (!addTask) return;
+    const taskCount = batchMode ? batchFiles.length * genCount : genCount;
+    const name = batchMode ? `批量生成 (${batchFiles.length}张)` : (prompt.slice(0, 20) || '未命名');
+    addTask('img2img', name, taskCount);
   };
+
+  const generateVariations = () => {
+    if (!addTask) return;
+    addTask('img2img', `变体 · ${prompt.slice(0, 15) || '未命名'}`, 4);
+  };
+
+  const aiEnhance = () => {
+    setAiEnhanceLoading(true);
+    setTimeout(() => {
+      setPrompt(prev => prev + '，专业商业摄影，柔和布光，浅景深，色彩饱和度高，8K超清细节，电影级氛围');
+      setAiEnhanceLoading(false);
+    }, 1200);
+  };
+
+  const addBatchFile = () => {
+    if (batchFiles.length < 10) setBatchFiles(prev => [...prev, { id: Date.now(), name: `product_${prev.length + 1}.jpg` }]);
+  };
+
+  const disabled = (batchMode ? batchFiles.length === 0 : !mainFile) || !prompt || !canSubmit;
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 24, alignItems: 'start' }}>
       <div>
-        {/* Reference image */}
+        {/* Reference images */}
         <div style={cardStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-            <span style={labelStyle}>参考图 <span style={{ color: '#FF3B30' }}>*</span> <span style={subLabel}>已添加 {file ? 1 : 0} 张</span></span>
-            {file && <button onClick={() => setFile(null)} style={{ fontSize: 12, color: '#FF3B30', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>清空</button>}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span style={labelStyle}>参考图</span>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#AEAEB2', cursor: 'pointer' }}>
+              <input type="checkbox" checked={batchMode} onChange={e => { setBatchMode(e.target.checked); if (e.target.checked) setMainFile(null); else setBatchFiles([]); }} style={{ accentColor: '#0071E3' }} /> 批量模式
+            </label>
           </div>
-          <UploadBox file={file} onUpload={setFile} onClear={() => setFile(null)} label="拖拽图片或文件夹到此处" hint="或点击选择文件 · 支持 JPG、PNG" />
-          {!file && (
-            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-              <button onClick={() => setFile({ name: 'product.jpg', url: null })} style={{ flex: 1, padding: '7px 0', fontSize: 12, borderRadius: 6, border: '1px solid #E8E8ED', background: '#FFF', cursor: 'pointer', fontFamily: 'inherit', color: '#6E6E73' }}>选择图片</button>
-              <button onClick={() => setFile({ name: 'folder/products/', url: null })} style={{ flex: 1, padding: '7px 0', fontSize: 12, borderRadius: 6, border: '1px solid #E8E8ED', background: '#FFF', cursor: 'pointer', fontFamily: 'inherit', color: '#6E6E73' }}>选择文件夹</button>
+
+          {batchMode ? (
+            <div>
+              <div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 6 }}>已添加 {batchFiles.length}/10 张，将对每张应用同一 prompt</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+                {batchFiles.map(f => (
+                  <div key={f.id} style={{ aspectRatio: 1, background: 'linear-gradient(135deg, #667eea, #764ba2)', borderRadius: 6, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Image size={16} color="rgba(255,255,255,0.7)" />
+                    <button onClick={() => setBatchFiles(prev => prev.filter(x => x.id !== f.id))} style={{ position: 'absolute', top: 2, right: 2, width: 14, height: 14, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', border: 'none', color: '#FFF', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={8} /></button>
+                  </div>
+                ))}
+                {batchFiles.length < 10 && (
+                  <div onClick={addBatchFile} style={{ aspectRatio: 1, border: '2px dashed #E8E8ED', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Plus size={16} color="#AEAEB2" /></div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {/* 主图 */}
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <div style={{ width: 56, height: 56, background: mainFile ? 'linear-gradient(135deg, #667eea, #764ba2)' : '#FAFAFA', border: '1px dashed #E8E8ED', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative', flexShrink: 0 }} onClick={() => setMainFile(mainFile ? null : { name: '主图.jpg' })}>
+                  {mainFile ? <Image size={18} color="rgba(255,255,255,0.8)" /> : <Plus size={16} color="#AEAEB2" />}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 500, color: '#1D1D1F' }}>主图 <span style={{ color: '#FF3B30' }}>*</span></div>
+                  <div style={{ fontSize: 10, color: '#AEAEB2', marginTop: 2 }}>{mainFile?.name || '产品或主要主体'}</div>
+                </div>
+              </div>
+              {/* 风格参考 */}
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <div style={{ width: 56, height: 56, background: styleFile ? 'linear-gradient(135deg, #f093fb, #f5576c)' : '#FAFAFA', border: '1px dashed #E8E8ED', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }} onClick={() => setStyleFile(styleFile ? null : { name: '风格参考.jpg' })}>
+                  {styleFile ? <Image size={18} color="rgba(255,255,255,0.8)" /> : <Plus size={16} color="#AEAEB2" />}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 500, color: '#1D1D1F' }}>风格参考 <span style={{ color: '#AEAEB2', fontSize: 10 }}>选填</span></div>
+                  <div style={{ fontSize: 10, color: '#AEAEB2', marginTop: 2 }}>{styleFile?.name || '想模仿的风格/色调'}</div>
+                </div>
+              </div>
+              {/* 场景参考 */}
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <div style={{ width: 56, height: 56, background: sceneFile ? 'linear-gradient(135deg, #4facfe, #00f2fe)' : '#FAFAFA', border: '1px dashed #E8E8ED', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }} onClick={() => setSceneFile(sceneFile ? null : { name: '场景参考.jpg' })}>
+                  {sceneFile ? <Image size={18} color="rgba(255,255,255,0.8)" /> : <Plus size={16} color="#AEAEB2" />}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 500, color: '#1D1D1F' }}>场景参考 <span style={{ color: '#AEAEB2', fontSize: 10 }}>选填</span></div>
+                  <div style={{ fontSize: 10, color: '#AEAEB2', marginTop: 2 }}>{sceneFile?.name || '想要的背景/环境'}</div>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -267,32 +489,39 @@ function Img2Img() {
           </div>
           <textarea value={prompt} onChange={e => setPrompt(e.target.value)} placeholder="请输入提示词，描述你想要生成的画面..." style={{ ...inputStyle, minHeight: 120, resize: 'vertical', lineHeight: 1.6 }} />
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
-            <button style={{ fontSize: 11, padding: '4px 12px', borderRadius: 6, border: '1px solid #E8E8ED', background: '#FFF', cursor: 'pointer', fontFamily: 'inherit', color: '#6E6E73', display: 'flex', alignItems: 'center', gap: 4 }}><BookOpen size={11} /> 模版库</button>
-            <button style={{ fontSize: 11, padding: '4px 12px', borderRadius: 6, border: '1px solid rgba(0,113,227,0.15)', background: 'rgba(0,113,227,0.04)', cursor: 'pointer', fontFamily: 'inherit', color: '#0071E3', display: 'flex', alignItems: 'center', gap: 4 }}><Sparkles size={11} /> AI 生成</button>
+            <button onClick={() => setTemplateLibOpen(true)} style={{ fontSize: 11, padding: '4px 12px', borderRadius: 6, border: '1px solid #E8E8ED', background: '#FFF', cursor: 'pointer', fontFamily: 'inherit', color: '#6E6E73', display: 'flex', alignItems: 'center', gap: 4 }}><BookOpen size={11} /> 提示词库</button>
+            <button onClick={aiEnhance} disabled={!prompt.trim() || aiEnhanceLoading} style={{ fontSize: 11, padding: '4px 12px', borderRadius: 6, border: '1px solid rgba(0,113,227,0.15)', background: 'rgba(0,113,227,0.04)', cursor: prompt.trim() && !aiEnhanceLoading ? 'pointer' : 'not-allowed', fontFamily: 'inherit', color: '#0071E3', display: 'flex', alignItems: 'center', gap: 4, opacity: prompt.trim() && !aiEnhanceLoading ? 1 : 0.5 }}>
+              {aiEnhanceLoading ? <><div style={{ width: 10, height: 10, border: '2px solid rgba(0,113,227,0.3)', borderTop: '2px solid #0071E3', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> 增强中...</> : <><Sparkles size={11} /> AI 增强</>}
+            </button>
           </div>
         </div>
 
         {/* Settings */}
         <div style={cardStyle}>
-          <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>模型选择</div><select value={model} onChange={e => setModel(e.target.value)} style={selectStyle}><option>Gemini 3 Pro Image</option><option>Gemini 2.0 Flash</option><option>Imagen 3</option><option>Imagen 3 Fast</option></select></div>
-          <div style={{ marginTop: 10 }}><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>分辨率</div><select value={resolution} onChange={e => setResolution(e.target.value)} style={selectStyle}><option>1K</option><option>2K</option><option>4K</option></select></div>
+          <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>模型选择</div><select value={model} onChange={e => setModel(e.target.value)} style={selectStyle}><option>NanoBanana Pro</option><option>NanoBanana2</option><option>Imagen 4</option><option>Imagen 4 Ultra</option><option>Imagen 4 Fast</option></select></div>
+          <div style={{ marginTop: 10 }}><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>分辨率</div><select value={resolution} onChange={e => setResolution(e.target.value)} style={selectStyle}><option>1024×1024 (1K)</option><option>1536×1536 (1.5K)</option><option>2048×2048 (2K)</option><option>4096×4096 (4K)</option></select></div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
-            <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>图片比例</div><select value={ratio} onChange={e => setRatio(e.target.value)} style={selectStyle}><option>16:9</option><option>9:16</option><option>1:1</option><option>3:4</option></select></div>
-            <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>生图数量</div><select value={genCount} onChange={e => setGenCount(Number(e.target.value))} style={selectStyle}><option value={1}>1</option><option value={2}>2</option><option value={4}>4</option></select></div>
+            <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>图片比例</div><select value={ratio} onChange={e => setRatio(e.target.value)} style={selectStyle}><option>16:9</option><option>9:16</option><option>1:1</option><option>3:4</option><option>4:3</option></select></div>
+            <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>生图数量</div><select value={genCount} onChange={e => setGenCount(Number(e.target.value))} style={selectStyle}>{[1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}</select></div>
           </div>
         </div>
 
-        <button onClick={generate} disabled={!file || !prompt} style={{ ...btnPrimary, opacity: (!file || !prompt) ? 0.5 : 1, cursor: (!file || !prompt) ? 'not-allowed' : 'pointer' }}>
-          <Sparkles size={16} /> 立即生成
+        <button onClick={generate} disabled={disabled} style={{ ...btnPrimary, opacity: disabled ? 0.5 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}>
+          <Sparkles size={16} /> {!canSubmit ? '队列已满，请等待' : batchMode ? `批量生成 ${batchFiles.length * genCount} 张` : '立即生成'}
         </button>
       </div>
 
+      {/* Preview wall */}
       <div style={previewWall}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <span style={{ fontSize: 15, fontWeight: 700, color: '#1D1D1F' }}>预览墙</span>
-          {results.length > 0 && <button onClick={() => setResults([])} style={{ fontSize: 12, color: '#AEAEB2', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}><Trash2 size={12} /> 清空预览墙</button>}
+          {globalTasks.length > 0 && globalTasks.some(t => t.status === 'completed') && (
+            <button onClick={generateVariations} disabled={!canSubmit} style={{ fontSize: 12, padding: '5px 14px', borderRadius: 6, border: '1px solid rgba(0,113,227,0.2)', background: canSubmit ? 'rgba(0,113,227,0.04)' : '#F5F5F7', color: canSubmit ? '#0071E3' : '#AEAEB2', cursor: canSubmit ? 'pointer' : 'not-allowed', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 500 }}>
+              <RefreshCw size={11} /> 生成 4 张变体
+            </button>
+          )}
         </div>
-        {results.length === 0 ? (
+        {globalTasks.length === 0 ? (
           <div style={emptyState}>
             <div style={{ width: 56, height: 56, borderRadius: 14, background: 'linear-gradient(135deg, #0071E3, #00C6FF)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
               <RefreshCw size={24} color="#FFF" />
@@ -301,11 +530,71 @@ function Img2Img() {
             <div style={{ fontSize: 12, color: '#AEAEB2', marginTop: 4 }}>上传参考图并填写提示词，AI 将生成全新作品</div>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-            {results.map(r => <PreviewItem key={r.id} status={r.status} label={r.label} ratio={ratio === '9:16' ? '9/16' : ratio === '16:9' ? '16/9' : '1/1'} />)}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {globalTasks.map(task => (
+              <div key={task.id} style={{ background: '#FFF', borderRadius: 12, border: '1px solid #E8E8ED', overflow: 'hidden' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid #F0F0F0' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: task.status === 'running' ? '#0071E3' : task.status === 'completed' ? '#34C759' : '#FF3B30', animation: task.status === 'running' ? 'pulse 1.5s infinite' : 'none' }} />
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#1D1D1F' }}>{task.name}</span>
+                    <span style={{ fontSize: 11, color: '#AEAEB2' }}>{task.progress.done}/{task.progress.total}</span>
+                    {task.status === 'running' && <div style={{ width: 12, height: 12, border: '2px solid #E8E8ED', borderTop: '2px solid #0071E3', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 10, color: '#C7C7CC' }}>{new Date(task.createdAt).toLocaleTimeString()}</span>
+                    {task.status === 'running' && cancelTask && (
+                      <button onClick={() => cancelTask(task.id)} style={{ fontSize: 11, color: '#FF3B30', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>取消</button>
+                    )}
+                  </div>
+                </div>
+                <div style={{ padding: 12, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                  {task.results.map(r => (
+                    <PreviewItem
+                      key={r.id} status={r.status} label={r.label} prompt={r.prompt || prompt}
+                      ratio={ratio === '9:16' ? '9/16' : ratio === '16:9' ? '16/9' : ratio === '3:4' ? '3/4' : ratio === '4:3' ? '4/3' : '1/1'}
+                      onPreview={() => setPreviewImg(r.label)}
+                      onRegenerate={() => setPromptModal({ title: `重新生成 · ${r.label}`, initialPrompt: r.prompt || prompt })}
+                      onDownload={() => alert(`下载: ${r.label}`)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
+
+      {/* Modals */}
+      {previewImg && <ImagePreviewModal label={previewImg} onClose={() => setPreviewImg(null)} />}
+      {promptModal && (
+        <PromptEditModal
+          title={promptModal.title}
+          initialPrompt={promptModal.initialPrompt}
+          onConfirm={() => {}}
+          onClose={() => setPromptModal(null)}
+        />
+      )}
+      {templateLibOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setTemplateLibOpen(false)}>
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(6px)' }} />
+          <div onClick={e => e.stopPropagation()} style={{ position: 'relative', width: 560, maxHeight: '80vh', overflow: 'auto', background: '#FFF', borderRadius: 16, padding: '24px 28px', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', animation: 'fadeIn 200ms ease' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <span style={{ fontSize: 15, fontWeight: 700, color: '#1D1D1F' }}>提示词库</span>
+              <button onClick={() => setTemplateLibOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><X size={18} color="#AEAEB2" /></button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {PROMPT_TEMPLATES.map(t => (
+                <div key={t.id} onClick={() => { setPrompt(t.content); setTemplateLibOpen(false); }} style={{ padding: '12px 14px', borderRadius: 8, border: '1px solid #E8E8ED', cursor: 'pointer', transition: 'all 150ms' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#0071E3'; e.currentTarget.style.background = 'rgba(0,113,227,0.02)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8E8ED'; e.currentTarget.style.background = '#FFF'; }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#1D1D1F', marginBottom: 4 }}>{t.title}</div>
+                  <div style={{ fontSize: 11, color: '#6E6E73', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{t.content}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
