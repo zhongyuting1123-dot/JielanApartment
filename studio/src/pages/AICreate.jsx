@@ -82,9 +82,10 @@ function ProductImageGen({ globalTasks = [], addTask, cancelTask, canSubmit }) {
   const [cat2, setCat2] = useState('');
   const [lang, setLang] = useState('英语');
   const [size, setSize] = useState('');
-  const [model, setModel] = useState('Gemini 3 Pro Image');
+  const [model, setModel] = useState('NanoBanana2');
   const [ratio, setRatio] = useState('1:1');
-  const [resolution, setResolution] = useState('1K');
+  const [customRatio, setCustomRatio] = useState('');
+  const [resolution, setResolution] = useState('1024×1024');
   const [count, setCount] = useState(7);
 
   const autoExtract = () => {
@@ -142,10 +143,26 @@ function ProductImageGen({ globalTasks = [], addTask, cancelTask, canSubmit }) {
             <span style={labelStyle}>生成设置</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>模型选择</div><select value={model} onChange={e => setModel(e.target.value)} style={selectStyle}><option>Gemini 3 Pro Image</option><option>Gemini 2.0 Flash</option><option>Imagen 3</option><option>Imagen 3 Fast</option></select></div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-              <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>图片比例</div><select value={ratio} onChange={e => setRatio(e.target.value)} style={selectStyle}><option>1:1</option><option>3:4</option><option>16:9</option></select></div>
-              <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>分辨率</div><select value={resolution} onChange={e => setResolution(e.target.value)} style={selectStyle}><option>1K</option><option>2K</option></select></div>
+            <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>模型选择</div><select value={model} onChange={e => setModel(e.target.value)} style={selectStyle}><option>NanoBanana2</option><option>NanoBanana Pro</option><option>Imagen 4</option><option>Imagen 4 Ultra</option><option>Imagen 4 Fast</option></select></div>
+            <div>
+              <div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>图片比例</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {['1:1', '3:4', '4:3', '16:9', '自定义'].map(r => (
+                  <button key={r} onClick={() => { setRatio(r); if (r !== '自定义') setCustomRatio(''); }} style={{
+                    padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
+                    background: ratio === r ? 'var(--color-primary)' : 'rgba(0,0,0,0.03)',
+                    color: ratio === r ? '#FFF' : '#6E6E73',
+                    border: ratio === r ? '1px solid var(--color-primary)' : '1px solid rgba(0,0,0,0.06)',
+                    transition: 'all 150ms',
+                  }}>{r}</button>
+                ))}
+              </div>
+              {ratio === '自定义' && (
+                <input value={customRatio} onChange={e => setCustomRatio(e.target.value)} placeholder="如：5:3" style={{ ...inputStyle, marginTop: 6, width: 100, padding: '5px 10px', fontSize: 11 }} />
+              )}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>分辨率</div><select value={resolution} onChange={e => setResolution(e.target.value)} style={selectStyle}><option>1024×1024 (1K)</option><option>1536×1536 (1.5K)</option><option>2048×2048 (2K)</option><option>4096×4096 (4K)</option></select></div>
               <div><div style={{ fontSize: 11, color: '#6E6E73', marginBottom: 4 }}>生成张数</div><select value={count} onChange={e => setCount(Number(e.target.value))} style={selectStyle}>{[1,2,3,4,5,6,7,8].map(n => <option key={n} value={n}>{n}</option>)}</select></div>
             </div>
           </div>
