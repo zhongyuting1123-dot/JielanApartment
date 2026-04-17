@@ -495,8 +495,8 @@ function ProductionLayer({ confirmed, schemeChanged, onResetChanged, project, sc
   const tabs = [
     { id: 'script', label: '口播稿', icon: <Mic size={13} /> },
     { id: 'copy', label: '发布文案', icon: <FileText size={13} /> },
-    { id: 'storyboard', label: '分镜头', icon: <Video size={13} /> },
     { id: 'images', label: '素材图片', icon: <Image size={13} /> },
+    { id: 'storyboard', label: '分镜头', icon: <Video size={13} /> },
   ];
 
   if (!confirmed) {
@@ -882,84 +882,242 @@ function CopyTab() {
   );
 }
 
-/* ── Tab: 分镜头 / 素材图片 (shared component) ────────────────── */
+/* ── Tab: 素材图片 ────────────────────────────────────────────── */
 
-function ImageGenTab({ type }) {
-  const isStoryboard = type === 'storyboard';
-  const toolType = isStoryboard ? 'storyboard' : 'image';
-  const initialCards = isStoryboard
-    ? [
-        { id: 1, prompt: '主播面对镜头，眼神直视，表情自然，配合手势讲解，简洁背景', generated: false, refImg: null },
-        { id: 2, prompt: '产品精华液特写，成分表标注高亮，柔和打光，微距拍摄', generated: false, refImg: null },
-        { id: 3, prompt: '分屏对比画面，左侧使用前暗沉肤色，右侧使用后通透肤色', generated: false, refImg: null },
-        { id: 4, prompt: '产品使用过程，手部取精华涂抹面部，第一人称视角，质地清透', generated: false, refImg: null },
-        { id: 5, prompt: '数据卡片动画入场，三个核心数据对比图，品牌色背景', generated: false, refImg: null },
-      ]
-    : [
-        { id: 1, prompt: '烟酰胺精华液，纯白背景，产品居中，柔和自然光，专业商拍质感，8K', generated: false, refImg: null },
-        { id: 2, prompt: '16:9短视频封面，大字标题"烟酰胺3个真相"，产品半身，悬念感', generated: false, refImg: null },
-        { id: 3, prompt: '成分功效对比卡片，简洁信息图风格，3栏对比，品牌蓝色调', generated: false, refImg: null },
-      ];
+function ImagesTab() {
+  const MAX_CARDS = 8;
+  const SEATS = 4;
+  const initialCards = [
+    { id: 1, prompt: '烟酰胺精华液，纯白背景，产品居中，柔和自然光，专业商拍质感，8K', seats: Array(SEATS).fill(null) },
+    { id: 2, prompt: '16:9短视频封面，大字标题"烟酰胺3个真相"，产品半身，悬念感', seats: Array(SEATS).fill(null) },
+    { id: 3, prompt: '成分功效对比卡片，简洁信息图风格，3栏对比，品牌蓝色调', seats: Array(SEATS).fill(null) },
+    { id: 4, prompt: '产品使用场景，女性手持精华液，柔光浴室环境，温馨色调', seats: Array(SEATS).fill(null) },
+    { id: 5, prompt: '成分安全认证卡片，检测报告风格，简洁专业，白底绿色点缀', seats: Array(SEATS).fill(null) },
+  ];
 
   const [cards, setCards] = useState(initialCards);
 
-  const updateCard = (id, updates) => setCards(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
-  const addCard = () => setCards(prev => [...prev, { id: Date.now(), prompt: '', generated: false, refImg: null }]);
+  const updatePrompt = (id, prompt) => setCards(prev => prev.map(c => c.id === id ? { ...c, prompt } : c));
+  const addCard = () => { if (cards.length < MAX_CARDS) setCards(prev => [...prev, { id: Date.now(), prompt: '', seats: Array(SEATS).fill(null) }]); };
   const removeCard = (id) => setCards(prev => prev.filter(c => c.id !== id));
-  const generateAll = () => setCards(prev => prev.map(c => ({ ...c, generated: true })));
-  const generateOne = (id) => updateCard(id, { generated: true });
+
+  const toggleApprove = (cardId, seatIdx) => {
+    setCards(prev => prev.map(c => {
+      if (c.id !== cardId) return c;
+      const newSeats = [...c.seats];
+      if (newSeats[seatIdx] === 'approved') newSeats[seatIdx] = 'done';
+      else if (newSeats[seatIdx] === 'done') newSeats[seatIdx] = 'approved';
+      return { ...c, seats: newSeats };
+    }));
+  };
+
+  const generateCard = (id) => {
+    setCards(prev => prev.map(c => {
+      if (c.id !== id) return c;
+      const newSeats = c.seats.map(s => s === 'approved' ? 'approved' : 'generating');
+      return { ...c, seats: newSeats };
+    }));
+    // Simulate generation
+    setTimeout(() => {
+      setCards(prev => prev.map(c => {
+        if (c.id !== id) return c;
+        return { ...c, seats: c.seats.map(s => s === 'generating' ? 'done' : s) };
+      }));
+    }, 1500 + Math.random() * 1500);
+  };
+
+  const generateAll = () => cards.forEach(c => { if (c.prompt.trim()) generateCard(c.id); });
 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{cards.length} 个{isStoryboard ? '镜头' : '图片'} · 接口：{isStoryboard ? '即梦 / Lovart' : '即梦'} (mock)</span>
+        <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{cards.length}/{MAX_CARDS} 组 · 模型：Nano Banana Pro</span>
         <div style={{ display: 'flex', gap: 6 }}>
-          <SecondaryBtn onClick={addCard}><Plus size={11} /> 新增{isStoryboard ? '镜头' : '图片'}</SecondaryBtn>
+          <SecondaryBtn onClick={addCard} disabled={cards.length >= MAX_CARDS}><Plus size={11} /> 新增图片{cards.length >= MAX_CARDS ? '（已满）' : ''}</SecondaryBtn>
           <PrimaryBtn size="sm" onClick={generateAll}><Sparkles size={12} /> 一键全部生成</PrimaryBtn>
         </div>
       </div>
-
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {cards.map((card, idx) => (
-          <div key={card.id} style={{ ...glassCard, padding: '16px 18px', display: 'grid', gridTemplateColumns: '1fr 200px', gap: 16 }}>
-            {/* Left: prompt */}
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text)' }}>{isStoryboard ? `镜头 ${idx + 1}` : `图片 ${idx + 1}`}</span>
+        {cards.map((card, idx) => {
+          const approvedCount = card.seats.filter(s => s === 'approved').length;
+          const unfilledCount = card.seats.filter(s => s !== 'approved').length;
+          const hasGenerated = card.seats.some(s => s === 'done' || s === 'approved');
+          return (
+            <div key={card.id} style={{ ...glassCard, padding: '16px 18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text)' }}>图片 {idx + 1}</span>
+                  {approvedCount > 0 && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 'var(--radius-full)', background: 'var(--color-green-bg)', color: 'var(--color-green)', fontWeight: 500 }}>已选 {approvedCount}/{SEATS}</span>}
+                </div>
                 <div style={{ display: 'flex', gap: 4 }}>
                   {cards.length > 1 && (
-                    <button onClick={() => removeCard(card.id)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: 'var(--radius-sm)', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', transition: 'color var(--transition-fast)' }}
-                      onMouseEnter={e => e.currentTarget.style.color = 'var(--color-red)'}
-                      onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-tertiary)'}
-                    ><Trash2 size={12} /></button>
+                    <button onClick={() => removeCard(card.id)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: 'var(--radius-sm)', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)' }}
+                      onMouseEnter={e => e.currentTarget.style.color = '#FF3B30'} onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-tertiary)'}><Trash2 size={12} /></button>
                   )}
                 </div>
               </div>
-              <PromptTemplatePicker toolType={toolType} onSelect={p => updateCard(card.id, { prompt: p })} />
-              <RefImageUpload refImg={card.refImg} onChange={v => updateCard(card.id, { refImg: v })} />
-              <textarea
-                value={card.prompt}
-                onChange={e => updateCard(card.id, { prompt: e.target.value })}
-                placeholder="输入或从模版选择 Prompt..."
-                style={{ ...inputStyle, minHeight: 72, resize: 'vertical', lineHeight: 1.7, padding: '10px 12px', fontSize: 12, marginBottom: 8 }}
-              />
-              <PrimaryBtn size="sm" onClick={() => generateOne(card.id)} disabled={!card.prompt.trim()}>
-                {card.generated ? <><RefreshCw size={11} /> 重新生成</> : <><Sparkles size={11} /> 生成</>}
-              </PrimaryBtn>
+              <textarea value={card.prompt} onChange={e => updatePrompt(card.id, e.target.value)} placeholder="输入 Prompt..." style={{ ...inputStyle, minHeight: 60, resize: 'vertical', lineHeight: 1.7, padding: '10px 12px', fontSize: 12, marginBottom: 10 }} />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <PrimaryBtn size="sm" onClick={() => generateCard(card.id)} disabled={!card.prompt.trim()}>
+                  {hasGenerated ? <><RefreshCw size={11} /> 重新生成{approvedCount > 0 ? `（${unfilledCount}张）` : ''}</> : <><Sparkles size={11} /> 生成</>}
+                </PrimaryBtn>
+              </div>
+              {/* Seats grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${SEATS}, 1fr)`, gap: 8 }}>
+                {card.seats.map((seat, si) => (
+                  <div key={si} style={{
+                    aspectRatio: '1', borderRadius: 'var(--radius-sm)', position: 'relative', overflow: 'hidden',
+                    border: seat === 'approved' ? '2px solid var(--color-green)' : '1px solid rgba(0,0,0,0.06)',
+                    background: seat === 'generating' ? 'rgba(0,113,227,0.04)' : seat ? 'linear-gradient(135deg, #E8E8ED 0%, #D1D1D6 100%)' : 'rgba(0,0,0,0.02)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: seat === 'done' || seat === 'approved' ? 'pointer' : 'default',
+                  }} onClick={() => (seat === 'done' || seat === 'approved') && toggleApprove(card.id, si)}>
+                    {seat === 'generating' && <div style={{ width: 20, height: 20, border: '2px solid #E8E8ED', borderTop: '2px solid #0071E3', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />}
+                    {seat === 'done' && <Image size={20} color="#AEAEB2" />}
+                    {seat === 'approved' && (
+                      <div style={{ position: 'absolute', inset: 0, background: 'rgba(52,199,89,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Check size={24} color="var(--color-green)" strokeWidth={3} />
+                      </div>
+                    )}
+                    {!seat && <span style={{ fontSize: 10, color: '#C7C7CC' }}>空席位</span>}
+                  </div>
+                ))}
+              </div>
             </div>
-            {/* Right: 2x2 grid */}
-            <div>
-              <ResultGrid2x2 generated={card.generated} />
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
 }
 
-function StoryboardTab() { return <ImageGenTab type="storyboard" />; }
-function ImagesTab() { return <ImageGenTab type="image" />; }
+/* ── Tab: 分镜头 ──────────────────────────────────────────────── */
+
+function StoryboardTab() {
+  const MAX_SHOTS = 5;
+  const SEATS = 2;
+  const initialShots = [
+    { id: 1, prompt: '股市大盘数据上涨画面，绿色K线图向上攀升，数据卡片叠加，科技蓝色调，俯视角度', duration: 4, seats: Array(SEATS).fill(null), firstFrame: null, lastFrame: null },
+    { id: 2, prompt: '原油期货价格暴跌曲线，红色下行趋势线，石油桶图标，暗色背景对比', duration: 4, seats: Array(SEATS).fill(null), firstFrame: null, lastFrame: null },
+    { id: 3, prompt: '黄金金条特写，温暖灯光，价格标签显示上涨箭头，奢华质感，浅景深', duration: 3, seats: Array(SEATS).fill(null), firstFrame: null, lastFrame: null },
+  ];
+
+  const [shots, setShots] = useState(initialShots);
+
+  const updateShot = (id, updates) => setShots(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+  const addShot = () => { if (shots.length < MAX_SHOTS) setShots(prev => [...prev, { id: Date.now(), prompt: '', duration: 4, seats: Array(SEATS).fill(null), firstFrame: null, lastFrame: null }]); };
+  const removeShot = (id) => setShots(prev => prev.filter(s => s.id !== id));
+
+  const toggleApprove = (shotId, seatIdx) => {
+    setShots(prev => prev.map(s => {
+      if (s.id !== shotId) return s;
+      const newSeats = [...s.seats];
+      if (newSeats[seatIdx] === 'approved') newSeats[seatIdx] = 'done';
+      else if (newSeats[seatIdx] === 'done') newSeats[seatIdx] = 'approved';
+      return { ...s, seats: newSeats };
+    }));
+  };
+
+  const generateShot = (id) => {
+    setShots(prev => prev.map(s => {
+      if (s.id !== id) return s;
+      const newSeats = s.seats.map(seat => seat === 'approved' ? 'approved' : 'generating');
+      return { ...s, seats: newSeats };
+    }));
+    setTimeout(() => {
+      setShots(prev => prev.map(s => {
+        if (s.id !== id) return s;
+        return { ...s, seats: s.seats.map(seat => seat === 'generating' ? 'done' : seat) };
+      }));
+    }, 2000 + Math.random() * 2000);
+  };
+
+  const generateAll = () => shots.forEach(s => { if (s.prompt.trim()) generateShot(s.id); });
+
+  const handleFrameUpload = (shotId, frameType) => {
+    const mockName = frameType === 'first' ? '首帧.jpg' : '尾帧.jpg';
+    updateShot(shotId, { [frameType === 'first' ? 'firstFrame' : 'lastFrame']: mockName });
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{shots.length}/{MAX_SHOTS} 个镜头 · 模型：Veo Lite</span>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <SecondaryBtn onClick={addShot} disabled={shots.length >= MAX_SHOTS}><Plus size={11} /> 新增镜头{shots.length >= MAX_SHOTS ? '（已满）' : ''}</SecondaryBtn>
+          <PrimaryBtn size="sm" onClick={generateAll}><Sparkles size={12} /> 一键全部生成</PrimaryBtn>
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {shots.map((shot, idx) => {
+          const approvedCount = shot.seats.filter(s => s === 'approved').length;
+          const unfilledCount = shot.seats.filter(s => s !== 'approved').length;
+          const hasGenerated = shot.seats.some(s => s === 'done' || s === 'approved');
+          return (
+            <div key={shot.id} style={{ ...glassCard, padding: '16px 18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text)' }}>镜头 {idx + 1}</span>
+                  <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 'var(--radius-full)', background: 'rgba(0,0,0,0.04)', color: 'var(--color-text-secondary)' }}>{shot.duration}s</span>
+                  {approvedCount > 0 && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 'var(--radius-full)', background: 'var(--color-green-bg)', color: 'var(--color-green)', fontWeight: 500 }}>已选 {approvedCount}/{SEATS}</span>}
+                </div>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {shots.length > 1 && (
+                    <button onClick={() => removeShot(shot.id)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: 'var(--radius-sm)', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)' }}
+                      onMouseEnter={e => e.currentTarget.style.color = '#FF3B30'} onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-tertiary)'}><Trash2 size={12} /></button>
+                  )}
+                </div>
+              </div>
+              {/* Duration slider */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)', minWidth: 32 }}>时长</span>
+                <input type="range" min={3} max={5} step={1} value={shot.duration} onChange={e => updateShot(shot.id, { duration: Number(e.target.value) })} style={{ flex: 1 }} />
+                <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', minWidth: 24 }}>{shot.duration}s</span>
+              </div>
+              {/* Frame uploads */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                <div style={{ flex: 1, padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px dashed rgba(0,0,0,0.1)', background: 'rgba(0,0,0,0.01)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => handleFrameUpload(shot.id, 'first')}>
+                  <span style={{ fontSize: 11, color: shot.firstFrame ? 'var(--color-text)' : 'var(--color-text-tertiary)' }}>{shot.firstFrame || '上传首帧（选填）'}</span>
+                  {shot.firstFrame ? <X size={12} color="var(--color-text-tertiary)" onClick={e => { e.stopPropagation(); updateShot(shot.id, { firstFrame: null }); }} /> : <Upload size={12} color="var(--color-text-tertiary)" />}
+                </div>
+                <div style={{ flex: 1, padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px dashed rgba(0,0,0,0.1)', background: 'rgba(0,0,0,0.01)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => handleFrameUpload(shot.id, 'last')}>
+                  <span style={{ fontSize: 11, color: shot.lastFrame ? 'var(--color-text)' : 'var(--color-text-tertiary)' }}>{shot.lastFrame || '上传尾帧（选填）'}</span>
+                  {shot.lastFrame ? <X size={12} color="var(--color-text-tertiary)" onClick={e => { e.stopPropagation(); updateShot(shot.id, { lastFrame: null }); }} /> : <Upload size={12} color="var(--color-text-tertiary)" />}
+                </div>
+              </div>
+              {/* Prompt */}
+              <textarea value={shot.prompt} onChange={e => updateShot(shot.id, { prompt: e.target.value })} placeholder="输入分镜头 Prompt..." style={{ ...inputStyle, minHeight: 60, resize: 'vertical', lineHeight: 1.7, padding: '10px 12px', fontSize: 12, marginBottom: 10 }} />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <PrimaryBtn size="sm" onClick={() => generateShot(shot.id)} disabled={!shot.prompt.trim()}>
+                  {hasGenerated ? <><RefreshCw size={11} /> 重新生成{approvedCount > 0 ? `（${unfilledCount}个）` : ''}</> : <><Sparkles size={11} /> 生成</>}
+                </PrimaryBtn>
+              </div>
+              {/* Seats */}
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${SEATS}, 1fr)`, gap: 8 }}>
+                {shot.seats.map((seat, si) => (
+                  <div key={si} style={{
+                    aspectRatio: '16/9', borderRadius: 'var(--radius-sm)', position: 'relative', overflow: 'hidden',
+                    border: seat === 'approved' ? '2px solid var(--color-green)' : '1px solid rgba(0,0,0,0.06)',
+                    background: seat === 'generating' ? 'rgba(0,113,227,0.04)' : seat ? 'linear-gradient(135deg, #E8E8ED 0%, #D1D1D6 100%)' : 'rgba(0,0,0,0.02)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: seat === 'done' || seat === 'approved' ? 'pointer' : 'default',
+                  }} onClick={() => (seat === 'done' || seat === 'approved') && toggleApprove(shot.id, si)}>
+                    {seat === 'generating' && <div style={{ width: 20, height: 20, border: '2px solid #E8E8ED', borderTop: '2px solid #0071E3', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />}
+                    {seat === 'done' && <Play size={20} color="#AEAEB2" />}
+                    {seat === 'approved' && (
+                      <div style={{ position: 'absolute', inset: 0, background: 'rgba(52,199,89,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Check size={24} color="var(--color-green)" strokeWidth={3} />
+                      </div>
+                    )}
+                    {!seat && <span style={{ fontSize: 10, color: '#C7C7CC' }}>空席位</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Project List
