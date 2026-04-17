@@ -911,16 +911,17 @@ function ImagesTab() {
   const MAX_CARDS = 8;
   const SEATS = 4;
   const initialCards = [
-    { id: 1, prompt: '烟酰胺精华液，纯白背景，产品居中，柔和自然光，专业商拍质感，8K', seats: Array(SEATS).fill(null) },
-    { id: 2, prompt: '16:9短视频封面，大字标题"烟酰胺3个真相"，产品半身，悬念感', seats: Array(SEATS).fill(null) },
-    { id: 3, prompt: '成分功效对比卡片，简洁信息图风格，3栏对比，品牌蓝色调', seats: Array(SEATS).fill(null) },
-    { id: 4, prompt: '产品使用场景，女性手持精华液，柔光浴室环境，温馨色调', seats: Array(SEATS).fill(null) },
-    { id: 5, prompt: '成分安全认证卡片，检测报告风格，简洁专业，白底绿色点缀', seats: Array(SEATS).fill(null) },
+    { id: 1, prompt: '烟酰胺精华液，纯白背景，产品居中，柔和自然光，专业商拍质感，8K', seats: Array(SEATS).fill(null), refImg: null },
+    { id: 2, prompt: '16:9短视频封面，大字标题"烟酰胺3个真相"，产品半身，悬念感', seats: Array(SEATS).fill(null), refImg: null },
+    { id: 3, prompt: '成分功效对比卡片，简洁信息图风格，3栏对比，品牌蓝色调', seats: Array(SEATS).fill(null), refImg: null },
+    { id: 4, prompt: '产品使用场景，女性手持精华液，柔光浴室环境，温馨色调', seats: Array(SEATS).fill(null), refImg: null },
+    { id: 5, prompt: '成分安全认证卡片，检测报告风格，简洁专业，白底绿色点缀', seats: Array(SEATS).fill(null), refImg: null },
   ];
 
   const [cards, setCards] = useState(initialCards);
   const updatePrompt = (id, prompt) => setCards(prev => prev.map(c => c.id === id ? { ...c, prompt } : c));
-  const addCard = () => { if (cards.length < MAX_CARDS) setCards(prev => [...prev, { id: Date.now(), prompt: '', seats: Array(SEATS).fill(null) }]); };
+  const updateRefImg = (id, refImg) => setCards(prev => prev.map(c => c.id === id ? { ...c, refImg } : c));
+  const addCard = () => { if (cards.length < MAX_CARDS) setCards(prev => [...prev, { id: Date.now(), prompt: '', seats: Array(SEATS).fill(null), refImg: null }]); };
   const removeCard = (id) => setCards(prev => prev.filter(c => c.id !== id));
   const toggleApprove = (cardId, si) => setCards(prev => prev.map(c => {
     if (c.id !== cardId) return c;
@@ -959,6 +960,12 @@ function ImagesTab() {
                     <button onClick={() => removeCard(card.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: 2 }}
                       onMouseEnter={e => e.currentTarget.style.color = '#FF3B30'} onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-tertiary)'}><Trash2 size={12} /></button>
                   )}
+                </div>
+                <div style={{ marginBottom: 6 }}>
+                  <button onClick={() => updateRefImg(card.id, card.refImg ? null : '垫图.jpg')} style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, border: '1px dashed rgba(0,0,0,0.1)', background: card.refImg ? 'rgba(0,113,227,0.04)' : 'none', color: card.refImg ? 'var(--color-primary)' : 'var(--color-text-tertiary)', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                    <Upload size={9} /> {card.refImg || '上传垫图（选填）'}
+                    {card.refImg && <X size={9} onClick={e => { e.stopPropagation(); updateRefImg(card.id, null); }} />}
+                  </button>
                 </div>
                 <textarea value={card.prompt} onChange={e => updatePrompt(card.id, e.target.value)} placeholder="输入 Prompt..." style={{ ...inputStyle, minHeight: 48, resize: 'vertical', lineHeight: 1.6, padding: '8px 10px', fontSize: 12, marginBottom: 8 }} />
                 <PrimaryBtn size="sm" onClick={() => generateCard(card.id)} disabled={!card.prompt.trim()}>
